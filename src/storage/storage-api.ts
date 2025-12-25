@@ -159,6 +159,7 @@ export async function updateMeetingGoal(
 
 /**
  * Add a My3Goal to a meeting.
+ * Uses slot-based IDs (g1, g2, g3) per WorkObjects spec §6.
  */
 export async function addMy3Goal(
   meetingId: string,
@@ -173,7 +174,22 @@ export async function addMy3Goal(
     throw new Error('Cannot add more than 3 goals');
   }
 
-  const goalId = generateId();
+  // Find first unused slot (g1, g2, or g3)
+  const usedSlots = new Set(meeting.my3Goals.map((g) => g.id));
+  let goalId = '';
+  for (let slot = 1; slot <= 3; slot++) {
+    const slotId = `g${slot}`;
+    if (!usedSlots.has(slotId)) {
+      goalId = slotId;
+      break;
+    }
+  }
+
+  // Fallback for legacy data with non-slot IDs
+  if (!goalId) {
+    goalId = `g${meeting.my3Goals.length + 1}`;
+  }
+
   meeting.my3Goals.push({
     id: goalId,
     text,
@@ -252,6 +268,7 @@ export async function toggleMy3Goal(
 
 /**
  * Add a marker to a meeting.
+ * Uses monotonic counter for stable IDs (m1, m2, m3...).
  */
 export async function addMarker(
   meetingId: string,
@@ -263,7 +280,12 @@ export async function addMarker(
     throw new Error(`Meeting ${meetingId} not found`);
   }
 
-  const markerId = generateId();
+  // Increment monotonic counter (never resets, even if markers deleted)
+  const counter = (meeting.markerCounter ?? 0) + 1;
+  meeting.markerCounter = counter;
+
+  // Use monotonic ID: m1, m2, m3... (WorkObjects spec §7)
+  const markerId = `m${counter}`;
   meeting.markers.push({
     id: markerId,
     type,

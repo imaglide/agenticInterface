@@ -104,6 +104,7 @@ function parseGoogleEvent(event: GoogleCalendarEvent): CalendarEvent {
 
   return {
     id: event.id,
+    iCalUid: event.iCalUID, // Stable identity for WorkObjects (spec §4.1)
     title: event.summary || '(No title)',
     startTime,
     endTime,
@@ -145,6 +146,8 @@ export async function fetchCalendarEvents(
     singleEvents: 'true',
     orderBy: 'startTime',
     maxResults: '50',
+    // Request iCalUID for stable identity (WorkObjects spec §4.1)
+    fields: 'items(id,iCalUID,summary,start,end,attendees,location,description,htmlLink)',
   });
 
   const endpoint = `/calendars/primary/events?${params.toString()}`;

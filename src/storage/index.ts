@@ -29,6 +29,45 @@ export {
   STORE_NAMES,
 } from './types';
 
+// WorkObject Types (Phase 1)
+export type {
+  WorkObjectType,
+  WorkObjectSource,
+  WorkObjectScope,
+  WorkObject,
+  MeetingUidMapping,
+  MeetingMetadata,
+  FlagType,
+  WorkObjectFlag,
+  LinkType,
+  WorkLink,
+  ParsedWorkObjectId,
+} from './work-object-types';
+
+// WorkObject ID Factory
+export {
+  generateMeetingUid,
+  buildScope,
+  getMeetingUidFromScope,
+  createWorkObjectId,
+  workObjectIds,
+  parseWorkObjectId,
+  isValidWorkObjectId,
+  isSameScope,
+  getMeetingUidFromWorkObjectId,
+} from './work-object-id';
+
+// Meeting UID API
+export {
+  getOrCreateMeetingUid,
+  getMeetingMapping,
+  findMeetingUidByEventId,
+  findMeetingUidByICalUid,
+  getNextMarkerNumber,
+  getMarkerCount,
+  getMeetingMetadata,
+} from './meeting-uid-api';
+
 // Storage API
 export { storage } from './storage-api';
 
@@ -44,3 +83,12 @@ export {
 
 // Low-level DB access (for testing/debugging)
 export { getDB, closeDB } from './db';
+
+// WorkObject store operations (for direct access)
+export {
+  meetingUidMappingsStore,
+  meetingMetadataStore,
+  workObjectsStore,
+  workObjectFlagsStore,
+  workLinksStore,
+} from './db';

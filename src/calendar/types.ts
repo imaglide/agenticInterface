@@ -43,6 +43,8 @@ export interface Attendee {
 
 export interface CalendarEvent {
   id: string;
+  /** iCalUID for stable identity across edits (WorkObjects spec §4.1) */
+  iCalUid?: string;
   title: string;
   startTime: number;
   endTime: number;
@@ -139,6 +141,8 @@ export const INITIAL_CALENDAR_STATE: CalendarState = {
 
 export interface GoogleCalendarEvent {
   id: string;
+  /** iCalUID for stable identity (more stable than eventId) */
+  iCalUID?: string;
   summary?: string;
   start: {
     dateTime?: string;

@@ -32,7 +32,15 @@ export type EventType =
   // Meeting lifecycle
   | 'meeting_prep_opened'
   | 'meeting_capture_opened'
-  | 'meeting_synthesis_opened';
+  | 'meeting_synthesis_opened'
+  // WorkObject lifecycle (Phase 1)
+  | 'meeting_uid_created'
+  | 'meeting_uid_resolved'
+  | 'work_object_created'
+  | 'work_object_updated'
+  | 'work_object_deleted'
+  | 'work_object_restored'
+  | 'flag_toggled';
 
 /**
  * Semantic events are kept forever.
@@ -60,6 +68,14 @@ export const SEMANTIC_EVENT_TYPES: EventType[] = [
   'meeting_prep_opened',
   'meeting_capture_opened',
   'meeting_synthesis_opened',
+  // WorkObject lifecycle
+  'meeting_uid_created',
+  'meeting_uid_resolved',
+  'work_object_created',
+  'work_object_updated',
+  'work_object_deleted',
+  'work_object_restored',
+  'flag_toggled',
 ];
 
 export const NOISE_EVENT_TYPES: EventType[] = [
@@ -130,6 +146,8 @@ export interface MeetingState {
   goal?: string;
   my3Goals: StoredMy3Goal[];
   markers: StoredMarker[];
+  /** Monotonic counter for marker IDs (never resets) */
+  markerCounter?: number;
   synthesisCompleted: boolean;
   createdAt: number;
   updatedAt: number;
@@ -179,11 +197,18 @@ export interface StorageAPI {
 // ============================================
 
 export const DB_NAME = 'agentic-interface';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2; // Bumped for WorkObjects stores
 
 export const STORE_NAMES = {
   events: 'events',
   meetings: 'meetings',
   intents: 'intents',
   aggregates: 'aggregates',
+  // WorkObjects stores (Phase 1)
+  meetingUidMappings: 'meetingUidMappings',
+  meetingMetadata: 'meetingMetadata',
+  // WorkObjects stores (Phase 2 - created as shells)
+  workObjects: 'workObjects',
+  workObjectFlags: 'workObjectFlags',
+  workLinks: 'workLinks',
 } as const;

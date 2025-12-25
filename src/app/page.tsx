@@ -13,8 +13,9 @@ import {
   modeLabels,
   modeDescriptions,
 } from '@/plans/static-plans';
-import { storage, useEventLogger } from '@/storage';
+import { storage, useEventLogger, useMeeting } from '@/storage';
 import { useSessionTracking, INTERACTION_TYPES } from '@/hooks/use-session-tracking';
+import { MeetingProvider } from '@/contexts/MeetingContext';
 
 // Register all components on module load
 registerAllComponents();
@@ -51,6 +52,7 @@ export default function Home() {
   const [registeredCount, setRegisteredCount] = useState(0);
   const { isDev, noHarness } = useDevMode();
   const { log } = useEventLogger();
+  const { refresh: refreshMeeting } = useMeeting(currentMeetingId);
 
   // Session tracking for bounce rate
   const { recordInteraction } = useSessionTracking(currentMode, currentMeetingId);
@@ -94,7 +96,7 @@ export default function Home() {
   };
 
   return (
-    <>
+    <MeetingProvider meetingId={currentMeetingId} onMarkerAdded={refreshMeeting}>
       {/* Dev Navigation Panel */}
       <div className={`fixed left-4 top-4 z-50 w-64 rounded-xl bg-white shadow-xl ${isDev ? 'mr-80' : ''}`}>
         {/* Header */}
@@ -203,6 +205,6 @@ export default function Home() {
           onMeetingChange={setCurrentMeetingId}
         />
       )}
-    </>
+    </MeetingProvider>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useMeetingContext } from '@/contexts/MeetingContext';
 
 export type MarkerType = 'decision' | 'action' | 'risk' | 'question';
 
@@ -30,6 +31,19 @@ export function CaptureMarkersPanel({
   const [showLabelInput, setShowLabelInput] = useState<MarkerType | null>(null);
   const [labelValue, setLabelValue] = useState('');
 
+  // Use context for marker creation if no prop callback provided
+  const meetingContext = useMeetingContext();
+  const createMarker = useCallback(
+    async (type: MarkerType, label?: string) => {
+      if (onMarkerCreate) {
+        onMarkerCreate(type, label);
+      } else if (meetingContext) {
+        await meetingContext.addMarker(type, label);
+      }
+    },
+    [onMarkerCreate, meetingContext]
+  );
+
   const handleMarkerClick = useCallback((type: MarkerType) => {
     setShowLabelInput(type);
     setLabelValue('');
@@ -37,25 +51,66 @@ export function CaptureMarkersPanel({
 
   const handleLabelSubmit = useCallback(() => {
     if (showLabelInput) {
-      onMarkerCreate?.(showLabelInput, labelValue.trim() || undefined);
+      createMarker(showLabelInput, labelValue.trim() || undefined);
       setShowLabelInput(null);
       setLabelValue('');
     }
-  }, [showLabelInput, labelValue, onMarkerCreate]);
+  }, [showLabelInput, labelValue, createMarker]);
 
   const handleLabelSkip = useCallback(() => {
     if (showLabelInput) {
-      onMarkerCreate?.(showLabelInput, undefined);
+      createMarker(showLabelInput, undefined);
       setShowLabelInput(null);
       setLabelValue('');
     }
-  }, [showLabelInput, onMarkerCreate]);
+  }, [showLabelInput, createMarker]);
 
   // Count markers by type
   const markerCounts = markers.reduce((acc, m) => {
     acc[m.type] = (acc[m.type] || 0) + 1;
     return acc;
   }, {} as Record<MarkerType, number>);
+
+  // DARQ hotkey listener - active only in capture mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore repeated key events (key held down)
+      if (e.repeat) return;
+
+      // Ignore when focus is in an input field
+      const target = e.target as HTMLElement;
+      const isInputFocused =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable;
+      if (isInputFocused) return;
+
+      // Ignore if label input overlay is showing
+      if (showLabelInput) return;
+
+      // Map key to marker type
+      const keyToMarker: Record<string, MarkerType> = {
+        d: 'decision',
+        D: 'decision',
+        a: 'action',
+        A: 'action',
+        r: 'risk',
+        R: 'risk',
+        q: 'question',
+        Q: 'question',
+      };
+
+      const markerType = keyToMarker[e.key];
+      if (markerType) {
+        // Create marker immediately (same path as button with skip)
+        createMarker(markerType, undefined);
+      }
+    };
+
+    // Attach at document level to catch all keys
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [createMarker, showLabelInput]);
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center p-8">

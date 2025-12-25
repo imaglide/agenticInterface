@@ -14,6 +14,13 @@ import {
   IntentItem,
   DailyAggregate,
 } from './types';
+import type {
+  MeetingUidMapping,
+  MeetingMetadata,
+  WorkObject,
+  WorkObjectFlag,
+  WorkLink,
+} from './work-object-types';
 
 // ============================================
 // Database Instance
@@ -86,6 +93,61 @@ function initializeStores(db: IDBDatabase): void {
   if (!db.objectStoreNames.contains(STORE_NAMES.aggregates)) {
     const aggregatesStore = db.createObjectStore(STORE_NAMES.aggregates, { keyPath: 'id' });
     aggregatesStore.createIndex('date', 'date', { unique: true });
+  }
+
+  // ============================================
+  // WorkObjects Stores (Phase 1)
+  // ============================================
+
+  // Meeting UID mappings: external calendar ID -> internal UID
+  if (!db.objectStoreNames.contains(STORE_NAMES.meetingUidMappings)) {
+    const mappingStore = db.createObjectStore(STORE_NAMES.meetingUidMappings, {
+      keyPath: 'meetingUid',
+    });
+    // Primary lookup by iCalUID (most stable)
+    mappingStore.createIndex('iCalUid', 'iCalUid', { unique: false });
+    // Secondary lookup by eventId (fallback)
+    mappingStore.createIndex('eventId', 'eventId', { unique: false });
+    // Compound index for recurring event disambiguation
+    mappingStore.createIndex('iCalUid_startTime', ['iCalUid', 'startTimeIso'], {
+      unique: true,
+    });
+  }
+
+  // Meeting metadata: marker counter, etc.
+  if (!db.objectStoreNames.contains(STORE_NAMES.meetingMetadata)) {
+    db.createObjectStore(STORE_NAMES.meetingMetadata, {
+      keyPath: 'meetingUid',
+    });
+  }
+
+  // ============================================
+  // WorkObjects Stores (Phase 2 - shells)
+  // ============================================
+
+  // WorkObjects store
+  if (!db.objectStoreNames.contains(STORE_NAMES.workObjects)) {
+    const woStore = db.createObjectStore(STORE_NAMES.workObjects, {
+      keyPath: 'id',
+    });
+    woStore.createIndex('type', 'type', { unique: false });
+  }
+
+  // WorkObject flags store
+  if (!db.objectStoreNames.contains(STORE_NAMES.workObjectFlags)) {
+    const flagStore = db.createObjectStore(STORE_NAMES.workObjectFlags, {
+      keyPath: ['workObjectId', 'flagType'],
+    });
+    flagStore.createIndex('workObjectId', 'workObjectId', { unique: false });
+  }
+
+  // WorkLinks store
+  if (!db.objectStoreNames.contains(STORE_NAMES.workLinks)) {
+    const linkStore = db.createObjectStore(STORE_NAMES.workLinks, {
+      keyPath: 'id',
+    });
+    linkStore.createIndex('fromId', 'fromId', { unique: false });
+    linkStore.createIndex('toId', 'toId', { unique: false });
   }
 }
 
@@ -352,4 +414,59 @@ export const aggregatesStore = {
   getByDate: (date: string) => queryByIndex<DailyAggregate>(STORE_NAMES.aggregates, 'date', date),
   count: () => countRecords(STORE_NAMES.aggregates),
   clear: () => clearStore(STORE_NAMES.aggregates),
+};
+
+// ============================================
+// WorkObjects Store Operations
+// ============================================
+
+export const meetingUidMappingsStore = {
+  put: (record: MeetingUidMapping) => putRecord(STORE_NAMES.meetingUidMappings, record),
+  get: (meetingUid: string) =>
+    getRecord<MeetingUidMapping>(STORE_NAMES.meetingUidMappings, meetingUid),
+  getAll: () => getAllRecords<MeetingUidMapping>(STORE_NAMES.meetingUidMappings),
+  getByICalUid: (iCalUid: string) =>
+    queryByIndex<MeetingUidMapping>(STORE_NAMES.meetingUidMappings, 'iCalUid', iCalUid),
+  getByEventId: (eventId: string) =>
+    queryByIndex<MeetingUidMapping>(STORE_NAMES.meetingUidMappings, 'eventId', eventId),
+  clear: () => clearStore(STORE_NAMES.meetingUidMappings),
+};
+
+export const meetingMetadataStore = {
+  put: (record: MeetingMetadata) => putRecord(STORE_NAMES.meetingMetadata, record),
+  get: (meetingUid: string) =>
+    getRecord<MeetingMetadata>(STORE_NAMES.meetingMetadata, meetingUid),
+  getAll: () => getAllRecords<MeetingMetadata>(STORE_NAMES.meetingMetadata),
+  clear: () => clearStore(STORE_NAMES.meetingMetadata),
+};
+
+// Phase 2 store operations (shells)
+export const workObjectsStore = {
+  put: (record: WorkObject) => putRecord(STORE_NAMES.workObjects, record),
+  get: (id: string) => getRecord<WorkObject>(STORE_NAMES.workObjects, id),
+  getAll: () => getAllRecords<WorkObject>(STORE_NAMES.workObjects),
+  getByType: (type: string) =>
+    queryByIndex<WorkObject>(STORE_NAMES.workObjects, 'type', type),
+  delete: (id: string) => deleteRecord(STORE_NAMES.workObjects, id),
+  clear: () => clearStore(STORE_NAMES.workObjects),
+};
+
+export const workObjectFlagsStore = {
+  put: (record: WorkObjectFlag) => putRecord(STORE_NAMES.workObjectFlags, record),
+  getAll: () => getAllRecords<WorkObjectFlag>(STORE_NAMES.workObjectFlags),
+  getByWorkObjectId: (workObjectId: string) =>
+    queryByIndex<WorkObjectFlag>(STORE_NAMES.workObjectFlags, 'workObjectId', workObjectId),
+  clear: () => clearStore(STORE_NAMES.workObjectFlags),
+};
+
+export const workLinksStore = {
+  put: (record: WorkLink) => putRecord(STORE_NAMES.workLinks, record),
+  get: (id: string) => getRecord<WorkLink>(STORE_NAMES.workLinks, id),
+  getAll: () => getAllRecords<WorkLink>(STORE_NAMES.workLinks),
+  getByFromId: (fromId: string) =>
+    queryByIndex<WorkLink>(STORE_NAMES.workLinks, 'fromId', fromId),
+  getByToId: (toId: string) =>
+    queryByIndex<WorkLink>(STORE_NAMES.workLinks, 'toId', toId),
+  delete: (id: string) => deleteRecord(STORE_NAMES.workLinks, id),
+  clear: () => clearStore(STORE_NAMES.workLinks),
 };

@@ -38,11 +38,15 @@ export function useEventLogger() {
 
 /**
  * Hook for fetching events.
+ * Note: Pass a memoized filter object to prevent infinite re-renders.
  */
 export function useEvents(filter?: EventFilter) {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Serialize filter to use as stable dependency
+  const filterKey = JSON.stringify(filter);
 
   const refresh = useCallback(async () => {
     try {
@@ -55,7 +59,8 @@ export function useEvents(filter?: EventFilter) {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey]);
 
   useEffect(() => {
     refresh();
@@ -235,11 +240,15 @@ export function useMeetings() {
 
 /**
  * Hook for fetching intents.
+ * Note: Pass a memoized filter object to prevent infinite re-renders.
  */
 export function useIntents(filter?: { scope?: IntentScope; status?: IntentStatus }) {
   const [intents, setIntents] = useState<IntentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Serialize filter to use as stable dependency
+  const filterKey = JSON.stringify(filter);
 
   const refresh = useCallback(async () => {
     try {
@@ -252,7 +261,8 @@ export function useIntents(filter?: { scope?: IntentScope; status?: IntentStatus
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey]);
 
   useEffect(() => {
     refresh();

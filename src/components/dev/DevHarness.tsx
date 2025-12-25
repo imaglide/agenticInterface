@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Mode } from '@/types/ui-plan';
 import { useEvents, useMeeting, useCompaction, storage } from '@/storage';
 import { MeetingState, EventRecord } from '@/storage';
@@ -45,8 +45,9 @@ export function DevHarness({
   const [overrideDate, setOverrideDate] = useState('');
   const [overrideTime, setOverrideTime] = useState('');
 
-  // Storage hooks
-  const { events, refresh: refreshEvents } = useEvents({ limit: 50 });
+  // Storage hooks - memoize filter to prevent infinite re-renders
+  const eventsFilter = useMemo(() => ({ limit: 50 }), []);
+  const { events, refresh: refreshEvents } = useEvents(eventsFilter);
   const { meeting, refresh: refreshMeeting } = useMeeting(currentMeetingId);
   const { compact, running: compacting, lastResult } = useCompaction();
 
@@ -87,6 +88,7 @@ export function DevHarness({
       goal: '',
       my3Goals: [],
       markers: [],
+      markerCounter: 0, // Monotonic counter for marker IDs (m1, m2...)
       synthesisCompleted: false,
       createdAt: now,
       updatedAt: now,
