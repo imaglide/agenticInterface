@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { PlanRenderer } from '@/components/PlanRenderer';
 import { DecisionCapsulePanel } from '@/components/shared/DecisionCapsulePanel';
 import { DevHarness } from '@/components/dev/DevHarness';
+import { ScenarioPanel } from '@/components/dev/ScenarioPanel';
 import { Mode } from '@/types/ui-plan';
 import { registerAllComponents } from '@/lib/register-components';
 import { getRegisteredTypes } from '@/lib/component-registry';
@@ -16,6 +17,7 @@ import {
 import { storage, useEventLogger, useMeeting } from '@/storage';
 import { useSessionTracking, INTERACTION_TYPES } from '@/hooks/use-session-tracking';
 import { MeetingProvider } from '@/contexts/MeetingContext';
+import { getScenarioById, activateScenario } from '@/test-harness';
 
 // Register all components on module load
 registerAllComponents();
@@ -31,6 +33,7 @@ const modeOrder: Mode[] = [
 function useDevMode() {
   const [isDev, setIsDev] = useState(false);
   const [noHarness, setNoHarness] = useState(false);
+  const [scenarioId, setScenarioId] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -38,11 +41,50 @@ function useDevMode() {
       process.env.NODE_ENV === 'development' || params.has('dev');
     // ?noharness=true hides the dev sidebar for sanity check day
     const noHarnessMode = params.has('noharness');
+    // ?scenario=<id> loads a test scenario automatically
+    const scenario = params.get('scenario');
     setIsDev(devEnabled);
     setNoHarness(noHarnessMode);
+    setScenarioId(scenario);
   }, []);
 
-  return { isDev, noHarness };
+  return { isDev, noHarness, scenarioId };
+}
+
+// Auto-load scenario from URL parameter
+function useScenarioLoader(
+  scenarioId: string | null,
+  onMeetingChange: (id: string | null) => void,
+  onModeChange: (mode: Mode) => void
+) {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!scenarioId || loaded) return;
+
+    const scenario = getScenarioById(scenarioId);
+    if (scenario) {
+      activateScenario(scenario).then((result) => {
+        if (result.success) {
+          // Set the first meeting as active if there are meetings
+          if (result.meetingIds.length > 0) {
+            onMeetingChange(result.meetingIds[0]);
+          }
+          // Set the expected mode from the scenario
+          if (scenario.expectedMode) {
+            onModeChange(scenario.expectedMode);
+          }
+        }
+        setLoaded(true);
+        console.log(`[TestHarness] Loaded scenario: ${scenario.name}`, result);
+      });
+    } else {
+      console.warn(`[TestHarness] Scenario not found: ${scenarioId}`);
+      setLoaded(true);
+    }
+  }, [scenarioId, loaded, onMeetingChange, onModeChange]);
+
+  return loaded;
 }
 
 export default function Home() {
@@ -50,9 +92,12 @@ export default function Home() {
   const [currentMeetingId, setCurrentMeetingId] = useState<string | null>(null);
   const [showPlanInspector, setShowPlanInspector] = useState(false);
   const [registeredCount, setRegisteredCount] = useState(0);
-  const { isDev, noHarness } = useDevMode();
+  const { isDev, noHarness, scenarioId } = useDevMode();
   const { log } = useEventLogger();
   const { refresh: refreshMeeting } = useMeeting(currentMeetingId);
+
+  // Auto-load scenario from URL ?scenario=<id>
+  useScenarioLoader(scenarioId, setCurrentMeetingId, setCurrentMode);
 
   // Session tracking for bounce rate
   const { recordInteraction } = useSessionTracking(currentMode, currentMeetingId);
@@ -198,12 +243,15 @@ export default function Home() {
 
       {/* Dev Harness (only in dev mode, hidden with ?noharness for sanity check) */}
       {isDev && !noHarness && (
-        <DevHarness
-          currentMode={currentMode}
-          onModeChange={handleModeChange}
-          currentMeetingId={currentMeetingId}
-          onMeetingChange={setCurrentMeetingId}
-        />
+        <>
+          <DevHarness
+            currentMode={currentMode}
+            onModeChange={handleModeChange}
+            currentMeetingId={currentMeetingId}
+            onMeetingChange={setCurrentMeetingId}
+          />
+          <ScenarioPanel onScenarioLoaded={refreshMeeting} />
+        </>
       )}
     </MeetingProvider>
   );
