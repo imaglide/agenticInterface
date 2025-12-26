@@ -1,5 +1,7 @@
 'use client';
 
+import { useCallback } from 'react';
+import { toast } from 'sonner';
 import { My3Goal } from '@/components/prep/My3GoalsCard';
 
 export interface GoalsChecklistStripProps {
@@ -11,6 +13,12 @@ export function GoalsChecklistStrip({
   goals,
   onGoalToggle,
 }: GoalsChecklistStripProps) {
+  const handleToggle = useCallback((goal: My3Goal) => {
+    const newState = !goal.achieved;
+    onGoalToggle?.(goal.id, newState);
+    toast.success(newState ? 'Goal completed!' : 'Goal reopened');
+  }, [onGoalToggle]);
+
   if (goals.length === 0) {
     return null;
   }
@@ -25,7 +33,7 @@ export function GoalsChecklistStrip({
           {goals.map((goal, index) => (
             <button
               key={goal.id}
-              onClick={() => onGoalToggle?.(goal.id, !goal.achieved)}
+              onClick={() => handleToggle(goal)}
               className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition ${
                 goal.achieved
                   ? 'bg-green-900/30 text-green-400'

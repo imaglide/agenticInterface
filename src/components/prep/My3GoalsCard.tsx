@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 
 export interface My3Goal {
   id: string;
@@ -52,6 +53,17 @@ export function My3GoalsCard({
     setEditValue('');
   }, [editingId, editValue, onGoalUpdate]);
 
+  const handleCancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditValue('');
+  }, []);
+
+  const handleToggle = useCallback((goal: My3Goal) => {
+    const newState = !goal.achieved;
+    onGoalToggle?.(goal.id, newState);
+    toast.success(newState ? 'Goal completed!' : 'Goal reopened');
+  }, [onGoalToggle]);
+
   return (
     <div className="rounded-xl bg-white p-6 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
@@ -79,14 +91,19 @@ export function My3GoalsCard({
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
                 onBlur={handleSaveEdit}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
-                className="flex-1 rounded border border-blue-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveEdit();
+                  if (e.key === 'Escape') handleCancelEdit();
+                }}
+                placeholder="Edit goal..."
+                className="flex-1 rounded border-2 border-blue-400 bg-blue-50 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 autoFocus
               />
             ) : (
               <span
-                className={`flex-1 text-sm ${goal.achieved ? 'text-gray-400 line-through' : 'text-gray-900'}`}
+                className={`flex-1 cursor-text text-sm ${goal.achieved ? 'text-gray-400 line-through' : 'text-gray-900'}`}
                 onClick={() => !readonly && handleStartEdit(goal)}
+                title={readonly ? undefined : 'Click to edit'}
               >
                 {goal.text}
               </span>
@@ -95,7 +112,7 @@ export function My3GoalsCard({
             {!readonly && (
               <div className="flex gap-1">
                 <button
-                  onClick={() => onGoalToggle?.(goal.id, !goal.achieved)}
+                  onClick={() => handleToggle(goal)}
                   className={`rounded p-1 transition ${
                     goal.achieved
                       ? 'text-green-600 hover:bg-green-50'

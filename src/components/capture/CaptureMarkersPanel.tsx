@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useMeetingContext } from '@/contexts/MeetingContext';
 
 export type MarkerType = 'decision' | 'action' | 'risk' | 'question';
@@ -25,20 +26,31 @@ const markerConfig: Record<MarkerType, { label: string; color: string; hotkey: s
 };
 
 export function CaptureMarkersPanel({
-  markers = [],
+  markers: propMarkers = [],
   onMarkerCreate,
 }: CaptureMarkersPanelProps) {
   const [showLabelInput, setShowLabelInput] = useState<MarkerType | null>(null);
   const [labelValue, setLabelValue] = useState('');
 
-  // Use context for marker creation if no prop callback provided
+  // Use context for marker creation and reading live data
   const meetingContext = useMeetingContext();
+
+  // Prefer live markers from context over static prop markers
+  const markers = meetingContext?.markers ?? propMarkers;
   const createMarker = useCallback(
     async (type: MarkerType, label?: string) => {
-      if (onMarkerCreate) {
-        onMarkerCreate(type, label);
-      } else if (meetingContext) {
-        await meetingContext.addMarker(type, label);
+      try {
+        if (onMarkerCreate) {
+          onMarkerCreate(type, label);
+        } else if (meetingContext) {
+          await meetingContext.addMarker(type, label);
+        }
+        // Capitalize first letter for display
+        const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+        toast.success(`${typeLabel} captured`);
+      } catch (error) {
+        toast.error('Failed to save marker');
+        console.error('Marker creation failed:', error);
       }
     },
     [onMarkerCreate, meetingContext]
@@ -127,7 +139,10 @@ export function CaptureMarkersPanel({
               className={`relative flex h-24 w-32 flex-col items-center justify-center rounded-xl ${config.color} text-white shadow-lg transition-transform active:scale-95`}
             >
               <span className="text-lg font-semibold">{config.label}</span>
-              <span className="mt-1 text-xs opacity-75">Press {config.hotkey}</span>
+              {/* Only show hotkey hint when hotkeys are active (no overlay open) */}
+              {!showLabelInput && (
+                <span className="mt-1 text-xs opacity-75">Press {config.hotkey}</span>
+              )}
               {count > 0 && (
                 <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-gray-900">
                   {count}
@@ -140,7 +155,7 @@ export function CaptureMarkersPanel({
 
       {/* Label input overlay */}
       {showLabelInput && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-80 rounded-xl bg-gray-800 p-6 shadow-2xl">
             <p className="mb-3 text-sm text-gray-400">
               Add a quick label (optional)

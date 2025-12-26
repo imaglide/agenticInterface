@@ -94,7 +94,7 @@ export default function Home() {
   const [registeredCount, setRegisteredCount] = useState(0);
   const { isDev, noHarness, scenarioId } = useDevMode();
   const { log } = useEventLogger();
-  const { refresh: refreshMeeting } = useMeeting(currentMeetingId);
+  const { meeting, refresh: refreshMeeting } = useMeeting(currentMeetingId);
 
   // Auto-load scenario from URL ?scenario=<id>
   useScenarioLoader(scenarioId, setCurrentMeetingId, setCurrentMode);
@@ -141,7 +141,7 @@ export default function Home() {
   };
 
   return (
-    <MeetingProvider meetingId={currentMeetingId} onMarkerAdded={refreshMeeting}>
+    <MeetingProvider meetingId={currentMeetingId} meeting={meeting} onMarkerAdded={refreshMeeting}>
       {/* Dev Navigation Panel */}
       <div className={`fixed left-4 top-4 z-50 w-64 rounded-xl bg-white shadow-xl ${isDev ? 'mr-80' : ''}`}>
         {/* Header */}

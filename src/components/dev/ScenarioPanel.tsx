@@ -164,7 +164,7 @@ export function ScenarioPanel({ onScenarioLoaded }: ScenarioPanelProps) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed right-4 top-16 z-50 rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white shadow-lg hover:bg-indigo-600"
+        className="fixed right-4 top-16 z-40 rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white shadow-lg hover:bg-indigo-600"
         title="Scenario Panel (Cmd+Shift+S)"
       >
         Scenarios
@@ -173,7 +173,7 @@ export function ScenarioPanel({ onScenarioLoaded }: ScenarioPanelProps) {
   }
 
   return (
-    <div className="fixed right-0 top-0 z-50 h-full w-96 overflow-y-auto bg-gray-900 text-gray-100 shadow-2xl">
+    <div className="fixed right-0 top-0 z-40 h-full w-96 overflow-y-auto bg-gray-900 text-gray-100 shadow-2xl">
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-700 bg-gray-900 px-4 py-3">
         <h2 className="font-semibold text-indigo-400">Test Scenarios</h2>
