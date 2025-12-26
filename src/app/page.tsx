@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PlanRenderer } from '@/components/PlanRenderer';
 import { DecisionCapsulePanel } from '@/components/shared/DecisionCapsulePanel';
 import { DevHarness } from '@/components/dev/DevHarness';
 import { ScenarioPanel } from '@/components/dev/ScenarioPanel';
-import { Mode } from '@/types/ui-plan';
+import { CalendarStatusIndicator } from '@/components/calendar/CalendarAuthPrompt';
+import { Mode, DecisionCapsule } from '@/types/ui-plan';
 import { registerAllComponents } from '@/lib/register-components';
 import { getRegisteredTypes } from '@/lib/component-registry';
 import {
@@ -18,6 +19,8 @@ import { storage, useEventLogger, useMeeting } from '@/storage';
 import { useSessionTracking, INTERACTION_TYPES } from '@/hooks/use-session-tracking';
 import { MeetingProvider } from '@/contexts/MeetingContext';
 import { getScenarioById, activateScenario } from '@/test-harness';
+import { useCalendarForRules } from '@/calendar/use-calendar';
+import { useRulesEngine } from '@/rules/use-rules-engine';
 
 // Register all components on module load
 registerAllComponents();
@@ -88,7 +91,6 @@ function useScenarioLoader(
 }
 
 export default function Home() {
-  const [currentMode, setCurrentMode] = useState<Mode>('neutral_intent');
   const [currentMeetingId, setCurrentMeetingId] = useState<string | null>(null);
   const [showPlanInspector, setShowPlanInspector] = useState(false);
   const [registeredCount, setRegisteredCount] = useState(0);
@@ -96,14 +98,54 @@ export default function Home() {
   const { log } = useEventLogger();
   const { meeting, refresh: refreshMeeting } = useMeeting(currentMeetingId);
 
+  // Calendar integration - get events in rules engine format
+  const { events: calendarEvents, isReady: calendarReady } = useCalendarForRules();
+
+  // Rules engine for automatic mode selection
+  const {
+    currentMode,
+    capsule: rulesCapsule,
+    evaluate,
+    forceMode,
+  } = useRulesEngine({
+    events: calendarEvents,
+    initialMode: 'neutral_intent',
+  });
+
+  // Track if we're using calendar-based selection or fallback
+  const [usesFallback, setUsesFallback] = useState(true);
+
   // Auto-load scenario from URL ?scenario=<id>
-  useScenarioLoader(scenarioId, setCurrentMeetingId, setCurrentMode);
+  // Note: When scenario is loaded, we use static mode instead of rules
+  const scenarioLoaded = useScenarioLoader(scenarioId, setCurrentMeetingId, (mode) => {
+    forceMode(mode);
+  });
 
   // Session tracking for bounce rate
   const { recordInteraction } = useSessionTracking(currentMode, currentMeetingId);
 
+  // Determine active plan and capsule (rules vs static fallback)
   const plan = staticPlans[currentMode];
-  const capsule = staticCapsules[currentMode];
+  const capsule: DecisionCapsule = rulesCapsule ?? staticCapsules[currentMode];
+
+  // Trigger rules evaluation when calendar becomes ready
+  useEffect(() => {
+    if (calendarReady && !scenarioId) {
+      evaluate('app_open');
+      setUsesFallback(false);
+    }
+  }, [calendarReady, scenarioId, evaluate]);
+
+  // Periodic evaluation for meeting boundaries (every 60 seconds)
+  useEffect(() => {
+    if (!calendarReady || scenarioId) return;
+
+    const interval = setInterval(() => {
+      evaluate('meeting_boundary_change');
+    }, 60_000);
+
+    return () => clearInterval(interval);
+  }, [calendarReady, scenarioId, evaluate]);
 
   useEffect(() => {
     setRegisteredCount(getRegisteredTypes().length);
@@ -115,19 +157,14 @@ export default function Home() {
   }, [currentMode, plan.id, log]);
 
   // Handle mode changes with logging
-  const handleModeChange = async (newMode: Mode) => {
+  const handleModeChange = useCallback(async (newMode: Mode) => {
     if (newMode !== currentMode) {
       // Record interaction to prevent bounce
       recordInteraction(INTERACTION_TYPES.MODE_SWITCH);
-      await storage.logEvent('mode_switched', {
-        from: currentMode,
-        to: newMode,
-        trigger: 'explicit_user_action',
-        reason: 'User selected mode',
-      });
-      setCurrentMode(newMode);
+      // Use forceMode which handles logging and stability
+      await forceMode(newMode);
     }
-  };
+  }, [currentMode, recordInteraction, forceMode]);
 
   // Handle capsule actions
   const handleCapsuleAction = (action: { type: string; target?: Mode }) => {
@@ -146,9 +183,12 @@ export default function Home() {
       <div className={`fixed left-4 top-4 z-50 w-64 rounded-xl bg-white shadow-xl ${isDev ? 'mr-80' : ''}`}>
         {/* Header */}
         <div className="border-b px-4 py-3">
-          <h2 className="font-semibold text-gray-900">Phase E Test</h2>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Agentic Interface</h2>
+            <CalendarStatusIndicator />
+          </div>
           <p className="text-xs text-gray-500">
-            {registeredCount} components • {isDev ? 'Dev mode' : 'Static plans'}
+            {registeredCount} components • {calendarReady ? 'Auto mode' : 'Manual mode'}
           </p>
         </div>
 
@@ -215,6 +255,7 @@ export default function Home() {
           <p><strong>Layout:</strong> {plan.layout}</p>
           <p><strong>Confidence:</strong> {plan.confidence}</p>
           <p><strong>Components:</strong> {plan.components.length}</p>
+          {calendarReady && <p><strong>Calendar Events:</strong> {calendarEvents.length}</p>}
           {currentMeetingId && <p><strong>Meeting:</strong> {currentMeetingId.slice(0, 12)}...</p>}
         </div>
 

@@ -50,7 +50,7 @@ test.describe('No-Harness Mode', () => {
       await page.waitForLoadState('networkidle');
 
       await expect(page.locator('main')).toBeVisible();
-      await expect(page.locator('text=Phase E Test')).toBeVisible();
+      await expect(page.locator('text=Agentic Interface')).toBeVisible();
     });
 
     test('mode selector still visible', async ({ page }) => {

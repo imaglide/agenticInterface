@@ -26,7 +26,7 @@ test.describe('Smoke Tests', () => {
     await expect(page.locator('main')).toBeVisible();
 
     // Verify header renders
-    await expect(page.locator('text=Phase E Test')).toBeVisible();
+    await expect(page.locator('text=Agentic Interface')).toBeVisible();
 
     // No fatal errors
     expect(errors.filter(e => e.includes('Fatal') || e.includes('Uncaught'))).toHaveLength(0);
