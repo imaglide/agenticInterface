@@ -225,6 +225,10 @@ export async function updateMy3Goal(
 
 /**
  * Delete a My3Goal.
+ *
+ * TODO: When goals are fully migrated to WorkObjects, replace this with
+ * soft-delete using `softDeleteWorkObject()` from work-object-api.ts.
+ * See: docs/parking_lot.md - "Tombstone Accumulation"
  */
 export async function deleteMy3Goal(
   meetingId: string,

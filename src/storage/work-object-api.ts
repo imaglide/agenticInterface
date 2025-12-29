@@ -7,7 +7,8 @@
 
 import { workObjectsStore, workLinksStore } from './db';
 import { logEvent } from './storage-api';
-import type { WorkObject, WorkLink } from './work-object-types';
+import { workObjectIds, isSameScope, getMeetingUidFromWorkObjectId } from './work-object-id';
+import type { WorkObject, WorkLink, LinkType } from './work-object-types';
 
 // ============================================
 // Soft Delete Operations
@@ -85,6 +86,129 @@ export async function softDeleteWorkLink(id: string): Promise<void> {
 
   link.deletedAtIso = new Date().toISOString();
   await workLinksStore.put(link);
+}
+
+// ============================================
+// WorkLink Creation
+// ============================================
+
+/**
+ * Error thrown when link creation fails validation.
+ */
+export class LinkValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly code:
+      | 'SELF_LINK'
+      | 'CROSS_SCOPE'
+      | 'SOURCE_NOT_FOUND'
+      | 'TARGET_NOT_FOUND'
+      | 'SOURCE_DELETED'
+      | 'TARGET_DELETED'
+      | 'INVALID_ID'
+  ) {
+    super(message);
+    this.name = 'LinkValidationError';
+  }
+}
+
+/**
+ * Create a WorkLink between two WorkObjects.
+ *
+ * Validates:
+ * - Both IDs are valid WorkObject IDs
+ * - Not a self-link (fromId !== toId)
+ * - Both objects exist and are not deleted
+ * - Both objects are in the same scope (V1 restriction)
+ *
+ * @param fromId - Source WorkObject ID
+ * @param toId - Target WorkObject ID
+ * @param type - Link type (related, supports, blocks, duplicates)
+ * @returns The created WorkLink ID
+ * @throws LinkValidationError if validation fails
+ */
+export async function createWorkLink(
+  fromId: string,
+  toId: string,
+  type: LinkType
+): Promise<string> {
+  // Self-link check
+  if (fromId === toId) {
+    throw new LinkValidationError(
+      'Cannot create a link from an object to itself',
+      'SELF_LINK'
+    );
+  }
+
+  // Same-scope check (V1 restriction: no cross-scope linking)
+  if (!isSameScope(fromId, toId)) {
+    throw new LinkValidationError(
+      'Cannot create links between objects in different scopes',
+      'CROSS_SCOPE'
+    );
+  }
+
+  // Get meeting UID from source for link ID generation
+  const meetingUid = getMeetingUidFromWorkObjectId(fromId);
+  if (!meetingUid) {
+    throw new LinkValidationError(
+      `Invalid source WorkObject ID: ${fromId}`,
+      'INVALID_ID'
+    );
+  }
+
+  // Validate source object exists and is active
+  const sourceObj = await workObjectsStore.get(fromId);
+  if (!sourceObj) {
+    throw new LinkValidationError(
+      `Source WorkObject not found: ${fromId}`,
+      'SOURCE_NOT_FOUND'
+    );
+  }
+  if (sourceObj.deletedAtIso) {
+    throw new LinkValidationError(
+      `Source WorkObject is deleted: ${fromId}`,
+      'SOURCE_DELETED'
+    );
+  }
+
+  // Validate target object exists and is active
+  const targetObj = await workObjectsStore.get(toId);
+  if (!targetObj) {
+    throw new LinkValidationError(
+      `Target WorkObject not found: ${toId}`,
+      'TARGET_NOT_FOUND'
+    );
+  }
+  if (targetObj.deletedAtIso) {
+    throw new LinkValidationError(
+      `Target WorkObject is deleted: ${toId}`,
+      'TARGET_DELETED'
+    );
+  }
+
+  // Create the link
+  const linkId = workObjectIds.link(meetingUid);
+  const now = new Date().toISOString();
+
+  const link: WorkLink = {
+    id: linkId,
+    fromId,
+    toId,
+    type,
+    createdAtIso: now,
+  };
+
+  await workLinksStore.put(link);
+  await logEvent('work_object_created', {
+    workObjectId: linkId,
+    type: 'link',
+    linkType: type,
+    fromId,
+    toId,
+  });
+
+  return linkId;
 }
 
 // ============================================
