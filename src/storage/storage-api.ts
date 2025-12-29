@@ -368,6 +368,23 @@ export async function updateMarkerLabel(
 }
 
 /**
+ * Delete a marker (soft-delete).
+ */
+export async function deleteMarker(meetingId: string, markerId: string): Promise<void> {
+  const meeting = await meetingsStore.get(meetingId);
+  if (!meeting) return;
+
+  const marker = meeting.markers.find((m) => m.id === markerId);
+  if (marker) {
+    // Soft-delete: set timestamp instead of removing
+    (marker as { deletedAt?: number }).deletedAt = Date.now();
+    meeting.updatedAt = Date.now();
+    await meetingsStore.put(meeting);
+    await logEvent('marker_deleted', { meetingId, markerId });
+  }
+}
+
+/**
  * Mark meeting synthesis as completed.
  */
 export async function completeSynthesis(meetingId: string): Promise<void> {
@@ -593,6 +610,7 @@ export const storage = {
   toggleMy3Goal,
   addMarker,
   updateMarkerLabel,
+  deleteMarker,
   completeSynthesis,
 
   // Intents

@@ -21,6 +21,7 @@ export type EventType =
   | 'goal_checked'
   | 'marker_created'
   | 'marker_labeled'
+  | 'marker_deleted'
   | 'synthesis_completed'
   | 'intent_created'
   | 'intent_status_changed'
@@ -59,6 +60,7 @@ export const SEMANTIC_EVENT_TYPES: EventType[] = [
   'goal_checked',
   'marker_created',
   'marker_labeled',
+  'marker_deleted',
   'synthesis_completed',
   'intent_created',
   'intent_status_changed',

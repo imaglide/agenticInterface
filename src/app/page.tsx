@@ -18,6 +18,7 @@ import {
 import { storage, useEventLogger, useMeeting } from '@/storage';
 import { useSessionTracking, INTERACTION_TYPES } from '@/hooks/use-session-tracking';
 import { MeetingProvider } from '@/contexts/MeetingContext';
+import { LinkingProvider } from '@/contexts/LinkingContext';
 import { getScenarioById, activateScenario, getSimulatedCalendarEvents, getVirtualNow } from '@/test-harness';
 import { useCalendarForRules, toRulesEvents } from '@/calendar/use-calendar';
 import { useRulesEngine } from '@/rules/use-rules-engine';
@@ -247,7 +248,8 @@ export default function Home() {
   };
 
   return (
-    <MeetingProvider meetingId={currentMeetingId} meeting={meeting} onMarkerAdded={refreshMeeting}>
+    <MeetingProvider meetingId={currentMeetingId} meeting={meeting} onDataChanged={refreshMeeting}>
+    <LinkingProvider>
       {/* Dev Navigation Panel */}
       <div className={`fixed left-4 top-4 z-50 w-64 rounded-xl bg-white shadow-xl ${isDev ? 'mr-80' : ''}`}>
         {/* Header */}
@@ -363,6 +365,7 @@ export default function Home() {
           <ScenarioPanel onScenarioLoaded={refreshMeeting} />
         </>
       )}
+    </LinkingProvider>
     </MeetingProvider>
   );
 }

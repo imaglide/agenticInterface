@@ -3,6 +3,8 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { WorkObjectActionMenu } from '@/components/shared/WorkObjectActionMenu';
+import { useMeetingContext } from '@/contexts/MeetingContext';
+import { useLinkingContext } from '@/contexts/LinkingContext';
 import type { LinkType } from '@/storage/work-object-types';
 
 export interface My3Goal {
@@ -13,7 +15,7 @@ export interface My3Goal {
 }
 
 export interface My3GoalsCardProps {
-  goals: My3Goal[];
+  goals?: My3Goal[];
   onGoalAdd?: (text: string) => void;
   onGoalUpdate?: (id: string, text: string) => void;
   onGoalDelete?: (id: string) => void;
@@ -24,14 +26,28 @@ export interface My3GoalsCardProps {
 }
 
 export function My3GoalsCard({
-  goals,
-  onGoalAdd,
-  onGoalUpdate,
-  onGoalDelete,
-  onGoalToggle,
-  onStartLinking,
+  goals: propsGoals,
+  onGoalAdd: propsOnGoalAdd,
+  onGoalUpdate: propsOnGoalUpdate,
+  onGoalDelete: propsOnGoalDelete,
+  onGoalToggle: propsOnGoalToggle,
+  onStartLinking: propsOnStartLinking,
   readonly = false,
 }: My3GoalsCardProps) {
+  // Use context as primary source when meeting is active
+  const meetingContext = useMeetingContext();
+  const linkingContext = useLinkingContext();
+
+  // When meeting is active, use context data; otherwise fall back to props
+  const hasActiveMeeting = !!meetingContext?.meetingId;
+  const goals = hasActiveMeeting ? meetingContext.goals : (propsGoals ?? []);
+  const onGoalAdd = propsOnGoalAdd ?? meetingContext?.addGoal;
+  const onGoalUpdate = propsOnGoalUpdate ?? meetingContext?.updateGoal;
+  const onGoalDelete = propsOnGoalDelete ?? meetingContext?.deleteGoal;
+  const onGoalToggle = propsOnGoalToggle ?? meetingContext?.toggleGoal;
+  const onStartLinking = propsOnStartLinking ?? (linkingContext
+    ? (goalId: string, linkType: LinkType) => linkingContext.startLinking(`wo:goal:meeting:${goalId}`, linkType)
+    : undefined);
   const [newGoal, setNewGoal] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');

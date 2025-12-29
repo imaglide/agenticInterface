@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useMeetingContext } from '@/contexts/MeetingContext';
+import { useLinkingContext } from '@/contexts/LinkingContext';
 import { WorkObjectActionMenu } from '@/components/shared/WorkObjectActionMenu';
 import type { LinkType } from '@/storage/work-object-types';
 
@@ -34,17 +35,24 @@ const markerConfig: Record<MarkerType, { label: string; color: string; hotkey: s
 export function CaptureMarkersPanel({
   markers: propMarkers = [],
   onMarkerCreate,
-  onStartLinking,
-  onMarkerDelete,
+  onStartLinking: propsOnStartLinking,
+  onMarkerDelete: propsOnMarkerDelete,
 }: CaptureMarkersPanelProps) {
   const [showLabelInput, setShowLabelInput] = useState<MarkerType | null>(null);
   const [labelValue, setLabelValue] = useState('');
 
   // Use context for marker creation and reading live data
   const meetingContext = useMeetingContext();
+  const linkingContext = useLinkingContext();
 
   // Prefer live markers from context over static prop markers
   const markers = meetingContext?.markers ?? propMarkers;
+
+  // Wire up linking and delete from context when props not provided
+  const onStartLinking = propsOnStartLinking ?? (linkingContext
+    ? (markerId: string, linkType: LinkType) => linkingContext.startLinking(`wo:marker:meeting:${markerId}`, linkType)
+    : undefined);
+  const onMarkerDelete = propsOnMarkerDelete ?? meetingContext?.deleteMarker;
   const createMarker = useCallback(
     async (type: MarkerType, label?: string) => {
       try {

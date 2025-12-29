@@ -64,7 +64,7 @@ export function useLinkingMode(
   config: Partial<LinkingModeConfig> = {}
 ): {
   status: LinkingModeStatus;
-  startLinking: (linkType: LinkType) => void;
+  startLinking: (linkType: LinkType, sourceWorkObjectId?: string) => void;
   selectSource: (workObjectId: string) => void;
   selectTarget: (workObjectId: string) => { sourceId: string; targetId: string; linkType: LinkType } | null;
   cancel: () => void;
@@ -140,10 +140,17 @@ export function useLinkingMode(
   // State Transitions
   // ============================================
 
-  const startLinking = useCallback((type: LinkType) => {
+  const startLinking = useCallback((type: LinkType, sourceWorkObjectId?: string) => {
     setLinkType(type);
-    setSourceId(null);
-    setState('selecting_source');
+    if (sourceWorkObjectId) {
+      // Start with source already selected (from action menu)
+      setSourceId(sourceWorkObjectId);
+      setState('selecting_target');
+    } else {
+      // Start in source selection mode
+      setSourceId(null);
+      setState('selecting_source');
+    }
     startTimeout();
   }, [startTimeout]);
 
