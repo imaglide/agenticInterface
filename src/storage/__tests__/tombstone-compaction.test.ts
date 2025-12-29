@@ -224,6 +224,67 @@ describe('compactTombstones', () => {
     result = await compactTombstones({ retentionDays: 30 });
     expect(result.workObjectsDeleted).toBe(1);
   });
+
+  it('deletes oldest tombstones when count exceeds threshold', async () => {
+    // Create 120 tombstones (exceeds 100 threshold)
+    // All within retention period (stagger by hours, not days)
+    const tombstones = Array.from({ length: 120 }, (_, i) => ({
+      id: `wo:${i}`,
+      type: 'marker',
+      // Stagger by hours so all are within 90 day retention
+      deletedAtIso: new Date(
+        Date.now() - (1 + i) * 60 * 60 * 1000 // hours ago
+      ).toISOString(),
+    }));
+
+    vi.mocked(workObjectsStore.getAll).mockResolvedValue(tombstones as any);
+    vi.mocked(workLinksStore.getAll).mockResolvedValue([]);
+
+    // Set threshold to 100, should delete 120 - 80 (80% of 100) = 40 oldest
+    const result = await compactTombstones({
+      retentionDays: 90, // None qualify by age
+      maxTombstoneCount: 100,
+    });
+
+    // 120 - 80 = 40 should be deleted
+    expect(result.workObjectsDeleted).toBe(40);
+    expect(result.tombstonesRemaining).toBe(80);
+    expect(deleteRecord).toHaveBeenCalledTimes(40);
+  });
+
+  it('combines age and count based deletion', async () => {
+    const oldDate = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString();
+    const recentDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+
+    // 5 old (should be deleted by age) + 100 recent (exceeds 80 threshold after age deletion)
+    const oldTombstones = Array.from({ length: 5 }, (_, i) => ({
+      id: `wo:old:${i}`,
+      type: 'marker',
+      deletedAtIso: oldDate,
+    }));
+
+    const recentTombstones = Array.from({ length: 100 }, (_, i) => ({
+      id: `wo:recent:${i}`,
+      type: 'marker',
+      deletedAtIso: new Date(Date.now() - (10 + i) * 24 * 60 * 60 * 1000).toISOString(),
+    }));
+
+    vi.mocked(workObjectsStore.getAll).mockResolvedValue([
+      ...oldTombstones,
+      ...recentTombstones,
+    ] as any);
+    vi.mocked(workLinksStore.getAll).mockResolvedValue([]);
+
+    const result = await compactTombstones({
+      retentionDays: 90,
+      maxTombstoneCount: 80,
+    });
+
+    // 5 by age + (100 - 64) = 5 + 36 = 41 deleted
+    // 80 * 0.8 = 64 target remaining
+    expect(result.workObjectsDeleted).toBe(41);
+    expect(result.tombstonesRemaining).toBe(64);
+  });
 });
 
 describe('generateExportFilename', () => {

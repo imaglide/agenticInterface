@@ -134,13 +134,19 @@ export async function getTombstoneStats(
 }
 
 /**
- * Compact tombstones older than the retention period.
+ * Compact tombstones based on age and/or count thresholds.
+ *
+ * Two compaction strategies:
+ * 1. Age-based: Delete tombstones older than retentionDays
+ * 2. Count-based: If tombstone count exceeds maxTombstoneCount,
+ *    delete oldest tombstones until count is reduced to 80% of threshold
+ *
  * Optionally exports data before permanent deletion.
  */
 export async function compactTombstones(
   config: Partial<TombstoneCompactionConfig> = {}
 ): Promise<CompactionResult> {
-  const { retentionDays, exportBeforeDelete } = {
+  const { retentionDays, maxTombstoneCount, exportBeforeDelete } = {
     ...DEFAULT_COMPACTION_CONFIG,
     ...config,
   };
@@ -149,27 +155,84 @@ export async function compactTombstones(
   const cutoffIso = new Date(cutoffTime).toISOString();
   const now = new Date().toISOString();
 
-  // Find tombstones older than cutoff
+  // Find all tombstones
   const [allObjects, allLinks] = await Promise.all([
     workObjectsStore.getAll(),
     workLinksStore.getAll(),
   ]);
 
-  const objectsToDelete = allObjects.filter(
-    (obj) => obj.deletedAtIso && obj.deletedAtIso < cutoffIso
+  const tombstonedObjects = allObjects.filter((obj) => !!obj.deletedAtIso);
+  const tombstonedLinks = allLinks.filter((link) => !!link.deletedAtIso);
+
+  // Phase 1: Age-based deletion
+  const objectsToDeleteByAge = tombstonedObjects.filter(
+    (obj) => obj.deletedAtIso! < cutoffIso
+  );
+  const linksToDeleteByAge = tombstonedLinks.filter(
+    (link) => link.deletedAtIso! < cutoffIso
   );
 
-  const linksToDelete = allLinks.filter(
-    (link) => link.deletedAtIso && link.deletedAtIso < cutoffIso
-  );
+  // Phase 2: Count-based deletion (if still over threshold after age-based)
+  const remainingAfterAge =
+    tombstonedObjects.length -
+    objectsToDeleteByAge.length +
+    (tombstonedLinks.length - linksToDeleteByAge.length);
+
+  let objectsToDeleteByCount: WorkObject[] = [];
+  let linksToDeleteByCount: WorkLink[] = [];
+
+  if (remainingAfterAge > maxTombstoneCount) {
+    // Target 80% of threshold to avoid immediate re-triggering
+    const targetCount = Math.floor(maxTombstoneCount * 0.8);
+    const excessCount = remainingAfterAge - targetCount;
+
+    // Get remaining tombstones not already marked for age-based deletion
+    const ageDeleteIds = new Set([
+      ...objectsToDeleteByAge.map((o) => o.id),
+      ...linksToDeleteByAge.map((l) => l.id),
+    ]);
+
+    const remainingObjects = tombstonedObjects.filter(
+      (obj) => !ageDeleteIds.has(obj.id)
+    );
+    const remainingLinks = tombstonedLinks.filter(
+      (link) => !ageDeleteIds.has(link.id)
+    );
+
+    // Sort all remaining by deletedAtIso (oldest first)
+    const sortedRemaining = [
+      ...remainingObjects.map((obj) => ({
+        kind: 'object' as const,
+        item: obj,
+        deletedAt: obj.deletedAtIso!,
+      })),
+      ...remainingLinks.map((link) => ({
+        kind: 'link' as const,
+        item: link,
+        deletedAt: link.deletedAtIso!,
+      })),
+    ].sort((a, b) => a.deletedAt.localeCompare(b.deletedAt));
+
+    // Take oldest ones up to excessCount
+    const toDeleteByCount = sortedRemaining.slice(0, excessCount);
+
+    objectsToDeleteByCount = toDeleteByCount
+      .filter((x) => x.kind === 'object')
+      .map((x) => x.item as WorkObject);
+    linksToDeleteByCount = toDeleteByCount
+      .filter((x) => x.kind === 'link')
+      .map((x) => x.item as WorkLink);
+  }
+
+  // Combine all items to delete
+  const objectsToDelete = [...objectsToDeleteByAge, ...objectsToDeleteByCount];
+  const linksToDelete = [...linksToDeleteByAge, ...linksToDeleteByCount];
 
   if (objectsToDelete.length === 0 && linksToDelete.length === 0) {
     return {
       workObjectsDeleted: 0,
       workLinksDeleted: 0,
-      tombstonesRemaining:
-        allObjects.filter((o) => !!o.deletedAtIso).length +
-        allLinks.filter((l) => !!l.deletedAtIso).length,
+      tombstonesRemaining: tombstonedObjects.length + tombstonedLinks.length,
       compactedAt: now,
     };
   }
@@ -194,23 +257,29 @@ export async function compactTombstones(
     action: 'tombstone_compaction',
     workObjectsDeleted: objectsToDelete.length,
     workLinksDeleted: linksToDelete.length,
+    deletedByAge: objectsToDeleteByAge.length + linksToDeleteByAge.length,
+    deletedByCount: objectsToDeleteByCount.length + linksToDeleteByCount.length,
     retentionDays,
     cutoffIso,
     exported: exportBeforeDelete,
   });
 
   // Calculate remaining tombstones
-  const remainingObjects = allObjects.filter(
-    (o) => o.deletedAtIso && o.deletedAtIso >= cutoffIso
+  const deleteIds = new Set([
+    ...objectsToDelete.map((o) => o.id),
+    ...linksToDelete.map((l) => l.id),
+  ]);
+  const finalRemainingObjects = tombstonedObjects.filter(
+    (o) => !deleteIds.has(o.id)
   );
-  const remainingLinks = allLinks.filter(
-    (l) => l.deletedAtIso && l.deletedAtIso >= cutoffIso
+  const finalRemainingLinks = tombstonedLinks.filter(
+    (l) => !deleteIds.has(l.id)
   );
 
   return {
     workObjectsDeleted: objectsToDelete.length,
     workLinksDeleted: linksToDelete.length,
-    tombstonesRemaining: remainingObjects.length + remainingLinks.length,
+    tombstonesRemaining: finalRemainingObjects.length + finalRemainingLinks.length,
     exportBlob,
     compactedAt: now,
   };

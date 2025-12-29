@@ -92,3 +92,35 @@ export {
   workObjectFlagsStore,
   workLinksStore,
 } from './db';
+
+// WorkObject API (soft-delete, linking)
+export {
+  softDeleteWorkObject,
+  restoreWorkObject,
+  softDeleteWorkLink,
+  createWorkLink,
+  getActiveWorkObjects,
+  getActiveWorkObjectsByType,
+  getTombstonedWorkObjects,
+  getTombstonedWorkObjectsOlderThan,
+  getActiveWorkLinks,
+  getActiveLinksForWorkObject,
+  getTombstoneStats as getWorkObjectTombstoneStats,
+  LinkValidationError,
+} from './work-object-api';
+
+// Tombstone Compaction
+export type {
+  TombstoneCompactionConfig,
+  CompactionResult,
+  TombstoneStats,
+} from './tombstone-compaction';
+
+export {
+  DEFAULT_COMPACTION_CONFIG,
+  getTombstoneStats,
+  compactTombstones,
+  exportAllTombstones,
+  downloadBlob,
+  generateExportFilename,
+} from './tombstone-compaction';

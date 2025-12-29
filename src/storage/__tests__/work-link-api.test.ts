@@ -27,6 +27,11 @@ vi.mock('../db', () => ({
     getByFromId: vi.fn(),
     getByToId: vi.fn(),
   },
+  meetingsStore: {
+    get: vi.fn(),
+    put: vi.fn(),
+    getAll: vi.fn(),
+  },
 }));
 
 vi.mock('../storage-api', () => ({
@@ -38,7 +43,7 @@ vi.mock('uuid', () => ({
   v4: vi.fn(() => 'test-uuid-1234'),
 }));
 
-import { workObjectsStore, workLinksStore } from '../db';
+import { workObjectsStore, workLinksStore, meetingsStore } from '../db';
 
 describe('createWorkLink', () => {
   beforeEach(() => {
@@ -89,7 +94,8 @@ describe('createWorkLink', () => {
   });
 
   it('throws SOURCE_NOT_FOUND when source does not exist', async () => {
-    vi.mocked(workObjectsStore.get).mockResolvedValueOnce(null);
+    vi.mocked(workObjectsStore.get).mockResolvedValue(null);
+    vi.mocked(meetingsStore.get).mockResolvedValue(null); // No embedded objects either
 
     try {
       await createWorkLink(sourceId, targetId, 'related');
@@ -101,9 +107,11 @@ describe('createWorkLink', () => {
   });
 
   it('throws TARGET_NOT_FOUND when target does not exist', async () => {
+    // Source exists as standalone WorkObject
     vi.mocked(workObjectsStore.get)
       .mockResolvedValueOnce({ id: sourceId, type: 'marker' } as any)
-      .mockResolvedValueOnce(null);
+      .mockResolvedValueOnce(null); // Target not in workObjectsStore
+    vi.mocked(meetingsStore.get).mockResolvedValue(null); // Target not embedded either
 
     try {
       await createWorkLink(sourceId, targetId, 'related');
