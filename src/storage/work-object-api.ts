@@ -5,9 +5,9 @@
  * See spec: docs/work_objects_and_agentic_work_surfaces.md §8, §18
  */
 
-import { workObjectsStore, workLinksStore } from './db';
+import { workObjectsStore, workLinksStore, meetingsStore } from './db';
 import { logEvent } from './storage-api';
-import { workObjectIds, isSameScope, getMeetingUidFromWorkObjectId } from './work-object-id';
+import { workObjectIds, isSameScope, getMeetingUidFromWorkObjectId, parseWorkObjectId } from './work-object-id';
 import type { WorkObject, WorkLink, LinkType } from './work-object-types';
 
 // ============================================
@@ -113,6 +113,57 @@ export class LinkValidationError extends Error {
 }
 
 /**
+ * Check if a WorkObject exists (either standalone or embedded in a meeting).
+ * Goals and markers are stored as arrays within meetings, not as separate WorkObjects.
+ *
+ * V1 Note: Static plan goals may not be stored in the database yet. We allow
+ * linking if the meeting exists and the ID format is valid, even if the specific
+ * goal/marker isn't found in the meeting's arrays.
+ */
+async function checkWorkObjectExists(
+  id: string
+): Promise<{ exists: boolean; deleted: boolean }> {
+  // First try the workObjectsStore for standalone WorkObjects
+  const standalone = await workObjectsStore.get(id);
+  if (standalone) {
+    return { exists: true, deleted: !!standalone.deletedAtIso };
+  }
+
+  // Parse the ID to check for embedded objects (goals, markers)
+  const parsed = parseWorkObjectId(id);
+  if (!parsed) {
+    return { exists: false, deleted: false };
+  }
+
+  // For goals and markers, check the meeting's embedded arrays
+  if (parsed.type === 'goal' || parsed.type === 'marker') {
+    const meetingId = parsed.scope.replace('mtg:', '');
+    const meeting = await meetingsStore.get(meetingId);
+    if (!meeting) {
+      return { exists: false, deleted: false };
+    }
+
+    if (parsed.type === 'goal') {
+      const goal = meeting.my3Goals?.find((g: { id: string; deletedAt?: number }) => g.id === parsed.localId);
+      if (goal) {
+        return { exists: true, deleted: !!goal.deletedAt };
+      }
+      // V1: Allow linking for goals if meeting exists (static plan goals may not be stored)
+      return { exists: true, deleted: false };
+    } else if (parsed.type === 'marker') {
+      const marker = meeting.markers?.find((m: { id: string; deletedAt?: number }) => m.id === parsed.localId);
+      if (marker) {
+        return { exists: true, deleted: !!marker.deletedAt };
+      }
+      // V1: Allow linking for markers if meeting exists
+      return { exists: true, deleted: false };
+    }
+  }
+
+  return { exists: false, deleted: false };
+}
+
+/**
  * Create a WorkLink between two WorkObjects.
  *
  * Validates:
@@ -158,14 +209,14 @@ export async function createWorkLink(
   }
 
   // Validate source object exists and is active
-  const sourceObj = await workObjectsStore.get(fromId);
-  if (!sourceObj) {
+  const sourceStatus = await checkWorkObjectExists(fromId);
+  if (!sourceStatus.exists) {
     throw new LinkValidationError(
       `Source WorkObject not found: ${fromId}`,
       'SOURCE_NOT_FOUND'
     );
   }
-  if (sourceObj.deletedAtIso) {
+  if (sourceStatus.deleted) {
     throw new LinkValidationError(
       `Source WorkObject is deleted: ${fromId}`,
       'SOURCE_DELETED'
@@ -173,14 +224,14 @@ export async function createWorkLink(
   }
 
   // Validate target object exists and is active
-  const targetObj = await workObjectsStore.get(toId);
-  if (!targetObj) {
+  const targetStatus = await checkWorkObjectExists(toId);
+  if (!targetStatus.exists) {
     throw new LinkValidationError(
       `Target WorkObject not found: ${toId}`,
       'TARGET_NOT_FOUND'
     );
   }
-  if (targetObj.deletedAtIso) {
+  if (targetStatus.deleted) {
     throw new LinkValidationError(
       `Target WorkObject is deleted: ${toId}`,
       'TARGET_DELETED'

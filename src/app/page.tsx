@@ -18,7 +18,8 @@ import {
 import { storage, useEventLogger, useMeeting } from '@/storage';
 import { useSessionTracking, INTERACTION_TYPES } from '@/hooks/use-session-tracking';
 import { MeetingProvider } from '@/contexts/MeetingContext';
-import { LinkingProvider } from '@/contexts/LinkingContext';
+import { LinkingProvider, useLinkingContext } from '@/contexts/LinkingContext';
+import { LinkingModeOverlay } from '@/components/linking/LinkingModeOverlay';
 import { getScenarioById, activateScenario, getSimulatedCalendarEvents, getVirtualNow } from '@/test-harness';
 import { useCalendarForRules, toRulesEvents } from '@/calendar/use-calendar';
 import { useRulesEngine } from '@/rules/use-rules-engine';
@@ -90,6 +91,19 @@ function useScenarioLoader(
   }, [scenarioId, loaded, onMeetingChange, onModeChange]);
 
   return loaded;
+}
+
+// Inner component to access LinkingContext for the overlay
+function LinkingOverlayWrapper() {
+  const linkingContext = useLinkingContext();
+  if (!linkingContext) return null;
+
+  return (
+    <LinkingModeOverlay
+      status={linkingContext.status}
+      onCancel={linkingContext.cancel}
+    />
+  );
 }
 
 export default function Home() {
@@ -353,6 +367,9 @@ export default function Home() {
         onAction={handleCapsuleAction}
       />
 
+      {/* Linking Mode Overlay (shows when linking is active) */}
+      <LinkingOverlayWrapper />
+
       {/* Dev Harness (only in dev mode, hidden with ?noharness for sanity check) */}
       {isDev && !noHarness && (
         <>
@@ -362,7 +379,12 @@ export default function Home() {
             currentMeetingId={currentMeetingId}
             onMeetingChange={setCurrentMeetingId}
           />
-          <ScenarioPanel onScenarioLoaded={refreshMeeting} />
+          <ScenarioPanel onScenarioLoaded={(meetingIds) => {
+            if (meetingIds && meetingIds.length > 0) {
+              setCurrentMeetingId(meetingIds[0]);
+            }
+            refreshMeeting();
+          }} />
         </>
       )}
     </LinkingProvider>

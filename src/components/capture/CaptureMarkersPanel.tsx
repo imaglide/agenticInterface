@@ -49,8 +49,8 @@ export function CaptureMarkersPanel({
   const markers = meetingContext?.markers ?? propMarkers;
 
   // Wire up linking and delete from context when props not provided
-  const onStartLinking = propsOnStartLinking ?? (linkingContext
-    ? (markerId: string, linkType: LinkType) => linkingContext.startLinking(`wo:marker:meeting:${markerId}`, linkType)
+  const onStartLinking = propsOnStartLinking ?? (linkingContext && meetingContext?.meetingId
+    ? (markerId: string, linkType: LinkType) => linkingContext.startLinking(`wo:marker:mtg:${meetingContext.meetingId}:${markerId}`, linkType)
     : undefined);
   const onMarkerDelete = propsOnMarkerDelete ?? meetingContext?.deleteMarker;
   const createMarker = useCallback(

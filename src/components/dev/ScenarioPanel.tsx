@@ -18,7 +18,7 @@ import {
 } from '@/test-harness/scenario-loader';
 
 interface ScenarioPanelProps {
-  onScenarioLoaded?: () => void;
+  onScenarioLoaded?: (meetingIds?: string[]) => void;
 }
 
 type ScenarioCategory = 'basic' | 'complex' | 'timeline' | 'edge' | 'stress';
@@ -72,7 +72,7 @@ export function ScenarioPanel({ onScenarioLoaded }: ScenarioPanelProps) {
           success: true,
           message: `Loaded: ${result.meetingIds.length} meetings, ${result.intentIds.length} intents`,
         });
-        onScenarioLoaded?.();
+        onScenarioLoaded?.(result.meetingIds);
       } else {
         setLoadResult({
           success: false,

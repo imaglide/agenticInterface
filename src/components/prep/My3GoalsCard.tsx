@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { WorkObjectActionMenu } from '@/components/shared/WorkObjectActionMenu';
+import { LinkableItem } from '@/components/linking/LinkableItem';
 import { useMeetingContext } from '@/contexts/MeetingContext';
 import { useLinkingContext } from '@/contexts/LinkingContext';
 import type { LinkType } from '@/storage/work-object-types';
@@ -45,8 +46,8 @@ export function My3GoalsCard({
   const onGoalUpdate = propsOnGoalUpdate ?? meetingContext?.updateGoal;
   const onGoalDelete = propsOnGoalDelete ?? meetingContext?.deleteGoal;
   const onGoalToggle = propsOnGoalToggle ?? meetingContext?.toggleGoal;
-  const onStartLinking = propsOnStartLinking ?? (linkingContext
-    ? (goalId: string, linkType: LinkType) => linkingContext.startLinking(`wo:goal:meeting:${goalId}`, linkType)
+  const onStartLinking = propsOnStartLinking ?? (linkingContext && meetingContext?.meetingId
+    ? (goalId: string, linkType: LinkType) => linkingContext.startLinking(`wo:goal:mtg:${meetingContext.meetingId}:${goalId}`, linkType)
     : undefined);
   const [newGoal, setNewGoal] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -97,68 +98,79 @@ export function My3GoalsCard({
       </div>
 
       <div className="flex flex-col gap-2">
-        {goals.map((goal, index) => (
-          <div
-            key={goal.id}
-            className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"
-          >
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-medium text-blue-700">
-              {index + 1}
-            </span>
+        {goals.map((goal, index) => {
+          const workObjectId = meetingContext?.meetingId
+            ? `wo:goal:mtg:${meetingContext.meetingId}:${goal.id}`
+            : `wo:goal:mtg:unknown:${goal.id}`;
+          return (
+            <LinkableItem
+              key={goal.id}
+              workObjectId={workObjectId}
+              linkingStatus={linkingContext?.status ?? { state: 'idle', sourceId: null, linkType: null, timeoutSecondsRemaining: null, showTimeoutWarning: false, isActive: false }}
+              onSelectSource={() => {}} // Source selection handled by action menu
+              onSelectTarget={(targetId) => linkingContext?.selectTarget(targetId)}
+              onActivity={linkingContext?.resetTimeout}
+            >
+              <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-medium text-blue-700">
+                  {index + 1}
+                </span>
 
-            {editingId === goal.id ? (
-              <input
-                type="text"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={handleSaveEdit}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveEdit();
-                  if (e.key === 'Escape') handleCancelEdit();
-                }}
-                placeholder="Edit goal..."
-                className="flex-1 rounded border-2 border-blue-400 bg-blue-50 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                autoFocus
-              />
-            ) : (
-              <span
-                className={`flex-1 cursor-text text-sm ${goal.achieved ? 'text-gray-400 line-through' : 'text-gray-900'}`}
-                onClick={() => !readonly && handleStartEdit(goal)}
-                title={readonly ? undefined : 'Click to edit'}
-              >
-                {goal.text}
-              </span>
-            )}
+                {editingId === goal.id ? (
+                  <input
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={handleSaveEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveEdit();
+                      if (e.key === 'Escape') handleCancelEdit();
+                    }}
+                    placeholder="Edit goal..."
+                    className="flex-1 rounded border-2 border-blue-400 bg-blue-50 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    autoFocus
+                  />
+                ) : (
+                  <span
+                    className={`flex-1 cursor-text text-sm ${goal.achieved ? 'text-gray-400 line-through' : 'text-gray-900'}`}
+                    onClick={() => !readonly && !linkingContext?.status.isActive && handleStartEdit(goal)}
+                    title={readonly ? undefined : 'Click to edit'}
+                  >
+                    {goal.text}
+                  </span>
+                )}
 
-            {!readonly && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handleToggle(goal)}
-                  className={`rounded p-1 transition ${
-                    goal.achieved
-                      ? 'text-green-600 hover:bg-green-50'
-                      : 'text-gray-400 hover:bg-gray-100'
-                  }`}
-                  title={goal.achieved ? 'Mark incomplete' : 'Mark complete'}
-                >
-                  {goal.achieved ? '✓' : '○'}
-                </button>
-                <WorkObjectActionMenu
-                  onStartLinking={
-                    onStartLinking
-                      ? (linkType) => onStartLinking(goal.id, linkType)
-                      : undefined
-                  }
-                  onDelete={
-                    onGoalDelete
-                      ? () => onGoalDelete(goal.id)
-                      : undefined
-                  }
-                />
+                {!readonly && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleToggle(goal)}
+                      className={`rounded p-1 transition ${
+                        goal.achieved
+                          ? 'text-green-600 hover:bg-green-50'
+                          : 'text-gray-400 hover:bg-gray-100'
+                      }`}
+                      title={goal.achieved ? 'Mark incomplete' : 'Mark complete'}
+                    >
+                      {goal.achieved ? '✓' : '○'}
+                    </button>
+                    <WorkObjectActionMenu
+                      onStartLinking={
+                        onStartLinking
+                          ? (linkType) => onStartLinking(goal.id, linkType)
+                          : undefined
+                      }
+                      onDelete={
+                        onGoalDelete
+                          ? () => onGoalDelete(goal.id)
+                          : undefined
+                      }
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        ))}
+            </LinkableItem>
+          );
+        })}
 
         {!readonly && canAddMore && (
           <div className="flex gap-2">
