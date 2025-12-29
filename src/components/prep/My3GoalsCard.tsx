@@ -34,13 +34,13 @@ export function My3GoalsCard({
   onStartLinking: propsOnStartLinking,
   readonly = false,
 }: My3GoalsCardProps) {
-  // Use context as primary source when meeting is active
+  // Use context as primary source when meeting is active and has goals
   const meetingContext = useMeetingContext();
   const linkingContext = useLinkingContext();
 
-  // When meeting is active, use context data; otherwise fall back to props
-  const hasActiveMeeting = !!meetingContext?.meetingId;
-  const goals = hasActiveMeeting ? meetingContext.goals : (propsGoals ?? []);
+  // Use context goals when meeting is active AND has goals; otherwise fall back to props
+  const hasActiveMeetingWithGoals = !!meetingContext?.meetingId && meetingContext.goals.length > 0;
+  const goals = hasActiveMeetingWithGoals ? meetingContext.goals : (propsGoals ?? []);
   const onGoalAdd = propsOnGoalAdd ?? meetingContext?.addGoal;
   const onGoalUpdate = propsOnGoalUpdate ?? meetingContext?.updateGoal;
   const onGoalDelete = propsOnGoalDelete ?? meetingContext?.deleteGoal;
