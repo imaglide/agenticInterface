@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useMeetingContext } from '@/contexts/MeetingContext';
+import { WorkObjectActionMenu } from '@/components/shared/WorkObjectActionMenu';
+import type { LinkType } from '@/storage/work-object-types';
 
 export type MarkerType = 'decision' | 'action' | 'risk' | 'question';
 
@@ -16,6 +18,10 @@ export interface Marker {
 export interface CaptureMarkersPanelProps {
   markers?: Marker[];
   onMarkerCreate?: (type: MarkerType, label?: string) => void;
+  /** Called when user starts linking from a marker */
+  onStartLinking?: (markerId: string, linkType: LinkType) => void;
+  /** Called when user deletes a marker */
+  onMarkerDelete?: (markerId: string) => void;
 }
 
 const markerConfig: Record<MarkerType, { label: string; color: string; hotkey: string }> = {
@@ -28,6 +34,8 @@ const markerConfig: Record<MarkerType, { label: string; color: string; hotkey: s
 export function CaptureMarkersPanel({
   markers: propMarkers = [],
   onMarkerCreate,
+  onStartLinking,
+  onMarkerDelete,
 }: CaptureMarkersPanelProps) {
   const [showLabelInput, setShowLabelInput] = useState<MarkerType | null>(null);
   const [labelValue, setLabelValue] = useState('');
@@ -201,7 +209,7 @@ export function CaptureMarkersPanel({
             {markers.slice(-5).reverse().map((marker) => (
               <div
                 key={marker.id}
-                className="flex items-center gap-3 rounded-lg bg-gray-800/50 px-3 py-2"
+                className="group flex items-center gap-3 rounded-lg bg-gray-800/50 px-3 py-2"
               >
                 <span className={`h-2 w-2 rounded-full ${markerConfig[marker.type].color.split(' ')[0]}`} />
                 <span className="text-sm text-gray-400">
@@ -213,6 +221,21 @@ export function CaptureMarkersPanel({
                     minute: '2-digit',
                   })}
                 </span>
+                {/* Action menu - visible on hover */}
+                <div className="opacity-0 transition-opacity group-hover:opacity-100">
+                  <WorkObjectActionMenu
+                    onStartLinking={
+                      onStartLinking
+                        ? (linkType) => onStartLinking(marker.id, linkType)
+                        : undefined
+                    }
+                    onDelete={
+                      onMarkerDelete
+                        ? () => onMarkerDelete(marker.id)
+                        : undefined
+                    }
+                  />
+                </div>
               </div>
             ))}
           </div>

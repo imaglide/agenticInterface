@@ -17,6 +17,7 @@ export type EventType =
   | 'my3_goal_added'
   | 'my3_goal_updated'
   | 'my3_goal_deleted'
+  | 'my3_goal_restored'
   | 'goal_checked'
   | 'marker_created'
   | 'marker_labeled'
@@ -54,6 +55,7 @@ export const SEMANTIC_EVENT_TYPES: EventType[] = [
   'my3_goal_added',
   'my3_goal_updated',
   'my3_goal_deleted',
+  'my3_goal_restored',
   'goal_checked',
   'marker_created',
   'marker_labeled',
@@ -137,6 +139,8 @@ export interface StoredMy3Goal {
   text: string;
   achieved: boolean;
   achievedAt?: number;
+  /** Soft-delete timestamp (tombstone) */
+  deletedAt?: number;
 }
 
 export interface MeetingState {

@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
+import { WorkObjectActionMenu } from '@/components/shared/WorkObjectActionMenu';
+import type { LinkType } from '@/storage/work-object-types';
 
 export interface My3Goal {
   id: string;
@@ -16,6 +18,8 @@ export interface My3GoalsCardProps {
   onGoalUpdate?: (id: string, text: string) => void;
   onGoalDelete?: (id: string) => void;
   onGoalToggle?: (id: string, achieved: boolean) => void;
+  /** Called when user starts linking from a goal */
+  onStartLinking?: (goalId: string, linkType: LinkType) => void;
   readonly?: boolean;
 }
 
@@ -25,6 +29,7 @@ export function My3GoalsCard({
   onGoalUpdate,
   onGoalDelete,
   onGoalToggle,
+  onStartLinking,
   readonly = false,
 }: My3GoalsCardProps) {
   const [newGoal, setNewGoal] = useState('');
@@ -110,7 +115,7 @@ export function My3GoalsCard({
             )}
 
             {!readonly && (
-              <div className="flex gap-1">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={() => handleToggle(goal)}
                   className={`rounded p-1 transition ${
@@ -122,13 +127,18 @@ export function My3GoalsCard({
                 >
                   {goal.achieved ? '✓' : '○'}
                 </button>
-                <button
-                  onClick={() => onGoalDelete?.(goal.id)}
-                  className="rounded p-1 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
-                  title="Remove goal"
-                >
-                  ×
-                </button>
+                <WorkObjectActionMenu
+                  onStartLinking={
+                    onStartLinking
+                      ? (linkType) => onStartLinking(goal.id, linkType)
+                      : undefined
+                  }
+                  onDelete={
+                    onGoalDelete
+                      ? () => onGoalDelete(goal.id)
+                      : undefined
+                  }
+                />
               </div>
             )}
           </div>

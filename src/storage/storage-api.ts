@@ -10,6 +10,7 @@ import {
   EventRecord,
   EventFilter,
   MeetingState,
+  StoredMy3Goal,
   IntentItem,
   IntentScope,
   IntentStatus,
@@ -170,12 +171,14 @@ export async function addMy3Goal(
     throw new Error(`Meeting ${meetingId} not found`);
   }
 
-  if (meeting.my3Goals.length >= 3) {
+  // Count only active (non-deleted) goals
+  const activeGoals = meeting.my3Goals.filter((g) => !g.deletedAt);
+  if (activeGoals.length >= 3) {
     throw new Error('Cannot add more than 3 goals');
   }
 
-  // Find first unused slot (g1, g2, or g3)
-  const usedSlots = new Set(meeting.my3Goals.map((g) => g.id));
+  // Find first unused slot (g1, g2, or g3) among active goals
+  const usedSlots = new Set(activeGoals.map((g) => g.id));
   let goalId = '';
   for (let slot = 1; slot <= 3; slot++) {
     const slotId = `g${slot}`;
@@ -224,11 +227,8 @@ export async function updateMy3Goal(
 }
 
 /**
- * Delete a My3Goal.
- *
- * TODO: When goals are fully migrated to WorkObjects, replace this with
- * soft-delete using `softDeleteWorkObject()` from work-object-api.ts.
- * See: docs/parking_lot.md - "Tombstone Accumulation"
+ * Soft-delete a My3Goal by setting deletedAt timestamp.
+ * The goal remains in storage but is hidden from active queries.
  */
 export async function deleteMy3Goal(
   meetingId: string,
@@ -237,11 +237,53 @@ export async function deleteMy3Goal(
   const meeting = await meetingsStore.get(meetingId);
   if (!meeting) return;
 
-  meeting.my3Goals = meeting.my3Goals.filter((g) => g.id !== goalId);
+  const goal = meeting.my3Goals.find((g) => g.id === goalId);
+  if (!goal) return;
+
+  // Soft-delete: set timestamp instead of removing
+  goal.deletedAt = Date.now();
   meeting.updatedAt = Date.now();
 
   await meetingsStore.put(meeting);
-  await logEvent('my3_goal_deleted', { meetingId, goalId });
+  await logEvent('my3_goal_deleted', { meetingId, goalId, deletedAt: goal.deletedAt });
+}
+
+/**
+ * Restore a soft-deleted My3Goal.
+ */
+export async function restoreMy3Goal(
+  meetingId: string,
+  goalId: string
+): Promise<void> {
+  const meeting = await meetingsStore.get(meetingId);
+  if (!meeting) return;
+
+  const goal = meeting.my3Goals.find((g) => g.id === goalId);
+  if (!goal || !goal.deletedAt) return;
+
+  // Check if restoring would exceed 3 active goals
+  const activeGoals = meeting.my3Goals.filter((g) => !g.deletedAt);
+  if (activeGoals.length >= 3) {
+    throw new Error('Cannot restore: already have 3 active goals');
+  }
+
+  goal.deletedAt = undefined;
+  meeting.updatedAt = Date.now();
+
+  await meetingsStore.put(meeting);
+  await logEvent('my3_goal_restored', { meetingId, goalId });
+}
+
+/**
+ * Get active (non-deleted) My3Goals for a meeting.
+ */
+export async function getActiveMy3Goals(
+  meetingId: string
+): Promise<StoredMy3Goal[]> {
+  const meeting = await meetingsStore.get(meetingId);
+  if (!meeting) return [];
+
+  return meeting.my3Goals.filter((g) => !g.deletedAt);
 }
 
 /**
@@ -546,6 +588,8 @@ export const storage = {
   addMy3Goal,
   updateMy3Goal,
   deleteMy3Goal,
+  restoreMy3Goal,
+  getActiveMy3Goals,
   toggleMy3Goal,
   addMarker,
   updateMarkerLabel,
