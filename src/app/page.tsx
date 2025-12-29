@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PlanRenderer } from '@/components/PlanRenderer';
 import { DecisionCapsulePanel } from '@/components/shared/DecisionCapsulePanel';
 import { DevHarness } from '@/components/dev/DevHarness';
@@ -18,9 +18,10 @@ import {
 import { storage, useEventLogger, useMeeting } from '@/storage';
 import { useSessionTracking, INTERACTION_TYPES } from '@/hooks/use-session-tracking';
 import { MeetingProvider } from '@/contexts/MeetingContext';
-import { getScenarioById, activateScenario } from '@/test-harness';
-import { useCalendarForRules } from '@/calendar/use-calendar';
+import { getScenarioById, activateScenario, getSimulatedCalendarEvents, getVirtualNow } from '@/test-harness';
+import { useCalendarForRules, toRulesEvents } from '@/calendar/use-calendar';
 import { useRulesEngine } from '@/rules/use-rules-engine';
+import { CalendarEvent as RulesCalendarEvent } from '@/rules';
 
 // Register all components on module load
 registerAllComponents();
@@ -101,25 +102,78 @@ export default function Home() {
   // Calendar integration - get events in rules engine format
   const { events: calendarEvents, isReady: calendarReady } = useCalendarForRules();
 
+  // Get simulated calendar events when scenario is active
+  const [simulatedEvents, setSimulatedEvents] = useState<RulesCalendarEvent[]>([]);
+
+  // Determine which events to use: simulated (from scenario) or real (from calendar)
+  const effectiveEvents = scenarioId && simulatedEvents.length > 0
+    ? simulatedEvents
+    : calendarEvents;
+
   // Rules engine for automatic mode selection
   const {
     currentMode,
     capsule: rulesCapsule,
     evaluate,
     forceMode,
+    setTimeOverride,
   } = useRulesEngine({
-    events: calendarEvents,
+    events: effectiveEvents,
     initialMode: 'neutral_intent',
   });
 
   // Track if we're using calendar-based selection or fallback
   const [usesFallback, setUsesFallback] = useState(true);
 
+  // Track which scenario has been initialized to prevent re-initialization loops
+  const scenarioInitializedRef = useRef<string | null>(null);
+
   // Auto-load scenario from URL ?scenario=<id>
-  // Note: When scenario is loaded, we use static mode instead of rules
   const scenarioLoaded = useScenarioLoader(scenarioId, setCurrentMeetingId, (mode) => {
-    forceMode(mode);
+    // Don't force mode - let rules engine decide based on simulated events
   });
+
+  // When scenario loads, get simulated calendar events and force initial mode
+  // Uses ref to prevent re-running when forceMode callback changes
+  useEffect(() => {
+    // Skip if already initialized for this scenario
+    if (scenarioInitializedRef.current === scenarioId) {
+      return;
+    }
+
+    if (scenarioLoaded && scenarioId) {
+      // Mark as initialized immediately to prevent loops
+      scenarioInitializedRef.current = scenarioId;
+
+      // Sync rules engine time with scenario's virtual time
+      const virtualNow = getVirtualNow();
+      setTimeOverride(virtualNow);
+
+      // Get simulated calendar events (already use virtual time)
+      const simEvents = getSimulatedCalendarEvents();
+      console.log('[Rules Integration] Scenario loaded:', scenarioId, 'simEvents:', simEvents.length);
+      if (simEvents.length > 0) {
+        // Convert to rules format
+        const rulesEvents = toRulesEvents(simEvents);
+        console.log('[Rules Integration] Setting simulated events:', rulesEvents);
+        setSimulatedEvents(rulesEvents);
+
+        // Force initial mode evaluation (bypasses stability checks)
+        // This is needed because stability blocks auto-switching within 5s of init
+        const scenario = getScenarioById(scenarioId);
+        if (scenario?.expectedMode) {
+          console.log('[Rules Integration] Forcing initial mode:', scenario.expectedMode);
+          forceMode(scenario.expectedMode);
+        }
+      } else {
+        console.warn('[Rules Integration] No simulated events found for scenario:', scenarioId);
+      }
+    } else if (!scenarioId) {
+      // Clear time override and reset initialization tracking when not using scenario
+      scenarioInitializedRef.current = null;
+      setTimeOverride(null);
+    }
+  }, [scenarioLoaded, scenarioId, setTimeOverride, forceMode]);
 
   // Session tracking for bounce rate
   const { recordInteraction } = useSessionTracking(currentMode, currentMeetingId);
@@ -128,24 +182,39 @@ export default function Home() {
   const plan = staticPlans[currentMode];
   const capsule: DecisionCapsule = rulesCapsule ?? staticCapsules[currentMode];
 
-  // Trigger rules evaluation when calendar becomes ready
+  // Trigger rules evaluation when calendar becomes ready OR simulated events are loaded
   useEffect(() => {
-    if (calendarReady && !scenarioId) {
+    const hasEvents = effectiveEvents.length > 0;
+    const isScenarioReady = scenarioId && simulatedEvents.length > 0;
+    const isCalendarReady = calendarReady && !scenarioId;
+
+    console.log('[Rules Integration] Evaluation check:', {
+      hasEvents,
+      isScenarioReady,
+      isCalendarReady,
+      simulatedEventsLength: simulatedEvents.length,
+      effectiveEventsLength: effectiveEvents.length,
+    });
+
+    if (isScenarioReady || isCalendarReady) {
+      console.log('[Rules Integration] Triggering evaluate("app_open")');
       evaluate('app_open');
       setUsesFallback(false);
     }
-  }, [calendarReady, scenarioId, evaluate]);
+  }, [calendarReady, scenarioId, simulatedEvents.length, effectiveEvents.length, evaluate]);
 
   // Periodic evaluation for meeting boundaries (every 60 seconds)
+  // Works for both real calendar and simulated scenarios
   useEffect(() => {
-    if (!calendarReady || scenarioId) return;
+    const hasEvents = effectiveEvents.length > 0;
+    if (!hasEvents) return;
 
     const interval = setInterval(() => {
       evaluate('meeting_boundary_change');
     }, 60_000);
 
     return () => clearInterval(interval);
-  }, [calendarReady, scenarioId, evaluate]);
+  }, [effectiveEvents.length, evaluate]);
 
   useEffect(() => {
     setRegisteredCount(getRegisteredTypes().length);
@@ -188,7 +257,7 @@ export default function Home() {
             <CalendarStatusIndicator />
           </div>
           <p className="text-xs text-gray-500">
-            {registeredCount} components • {calendarReady ? 'Auto mode' : 'Manual mode'}
+            {registeredCount} components • {!usesFallback ? 'Auto mode' : 'Manual mode'}
           </p>
         </div>
 

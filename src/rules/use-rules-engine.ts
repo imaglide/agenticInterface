@@ -59,15 +59,23 @@ export function useRulesEngine(
   const evaluate = useCallback(
     async (trigger: SwitchTrigger) => {
       const engine = engineRef.current;
+      console.log('[useRulesEngine] evaluate called with', events.length, 'events, trigger:', trigger);
       const result = await engine.evaluateContext(events, trigger);
+      console.log('[useRulesEngine] evaluate result:', {
+        mode: result.plan.mode,
+        shouldSwitch: result.shouldSwitch,
+        blockedReason: result.blockedReason,
+      });
 
       if (result.shouldSwitch) {
+        console.log('[useRulesEngine] Switching to mode:', result.plan.mode);
         setCurrentMode(result.plan.mode);
         setPlan(result.plan);
         setCapsule(result.capsule);
         setAdjacencySuggestion(result.adjacencySuggestion);
         onModeChange?.(result.plan.mode, result);
       } else {
+        console.log('[useRulesEngine] NOT switching, reason:', result.blockedReason);
         // Update capsule even if not switching
         setCapsule(result.capsule);
         setAdjacencySuggestion(result.adjacencySuggestion);
