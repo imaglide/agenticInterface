@@ -57,7 +57,8 @@ export async function getDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      initializeStores(db);
+      const tx = (event.target as IDBOpenDBRequest).transaction;
+      initializeStores(db, tx);
     };
   });
 
@@ -66,8 +67,9 @@ export async function getDB(): Promise<IDBDatabase> {
 
 /**
  * Initialize object stores on database creation/upgrade.
+ * @param tx - The upgrade transaction (for modifying existing stores)
  */
-function initializeStores(db: IDBDatabase): void {
+function initializeStores(db: IDBDatabase, tx: IDBTransaction | null): void {
   // Events store with timestamp index for range queries
   if (!db.objectStoreNames.contains(STORE_NAMES.events)) {
     const eventsStore = db.createObjectStore(STORE_NAMES.events, { keyPath: 'id' });
@@ -131,6 +133,13 @@ function initializeStores(db: IDBDatabase): void {
       keyPath: 'id',
     });
     woStore.createIndex('type', 'type', { unique: false });
+    woStore.createIndex('deletedAtIso', 'deletedAtIso', { unique: false });
+  } else if (tx) {
+    // Add deletedAtIso index if upgrading from v2
+    const woStore = tx.objectStore(STORE_NAMES.workObjects);
+    if (!woStore.indexNames.contains('deletedAtIso')) {
+      woStore.createIndex('deletedAtIso', 'deletedAtIso', { unique: false });
+    }
   }
 
   // WorkObject flags store

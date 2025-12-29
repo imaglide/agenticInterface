@@ -36,6 +36,7 @@ export type EventType =
   // WorkObject lifecycle (Phase 1)
   | 'meeting_uid_created'
   | 'meeting_uid_resolved'
+  | 'meeting_uid_rescheduled'
   | 'work_object_created'
   | 'work_object_updated'
   | 'work_object_deleted'
@@ -71,6 +72,7 @@ export const SEMANTIC_EVENT_TYPES: EventType[] = [
   // WorkObject lifecycle
   'meeting_uid_created',
   'meeting_uid_resolved',
+  'meeting_uid_rescheduled',
   'work_object_created',
   'work_object_updated',
   'work_object_deleted',
@@ -197,7 +199,7 @@ export interface StorageAPI {
 // ============================================
 
 export const DB_NAME = 'agentic-interface';
-export const DB_VERSION = 2; // Bumped for WorkObjects stores
+export const DB_VERSION = 3; // Bumped for tombstone index
 
 export const STORE_NAMES = {
   events: 'events',

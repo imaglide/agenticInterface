@@ -12,8 +12,64 @@
 
 import { meetingUidMappingsStore, meetingMetadataStore } from './db';
 import { generateMeetingUid } from './work-object-id';
+import { logEvent } from './storage-api';
 import type { MeetingUidMapping, MeetingMetadata } from './work-object-types';
 import type { CalendarEvent } from '@/calendar/types';
+
+// ============================================
+// Reschedule Detection Helpers
+// ============================================
+
+/**
+ * Check if two ISO timestamps are on the same calendar day but different times.
+ * Used to detect rescheduled recurring instances (e.g., standup moved from 9am to 10am).
+ *
+ * @param iso1 - First ISO timestamp
+ * @param iso2 - Second ISO timestamp
+ * @returns True if same date but different time
+ */
+export function isSameDateDifferentTime(iso1: string, iso2: string): boolean {
+  if (iso1 === iso2) return false;
+
+  const d1 = new Date(iso1);
+  const d2 = new Date(iso2);
+
+  return (
+    d1.getUTCFullYear() === d2.getUTCFullYear() &&
+    d1.getUTCMonth() === d2.getUTCMonth() &&
+    d1.getUTCDate() === d2.getUTCDate()
+  );
+}
+
+/**
+ * Update the startTimeIso for an existing mapping when a recurring instance is rescheduled.
+ * Preserves the meeting_uid to maintain WorkObject associations.
+ *
+ * @param mapping - Existing mapping to update
+ * @param newStartTimeIso - New start time after reschedule
+ */
+async function updateMappingForReschedule(
+  mapping: MeetingUidMapping,
+  newStartTimeIso: string
+): Promise<void> {
+  const oldStartTimeIso = mapping.startTimeIso;
+
+  // Set originalStartTimeIso if not already set (first reschedule)
+  if (!mapping.originalStartTimeIso) {
+    mapping.originalStartTimeIso = oldStartTimeIso;
+  }
+
+  mapping.startTimeIso = newStartTimeIso;
+  await meetingUidMappingsStore.put(mapping);
+
+  await logEvent('meeting_uid_rescheduled', {
+    meetingUid: mapping.meetingUid,
+    iCalUid: mapping.iCalUid,
+    oldStartTimeIso,
+    newStartTimeIso,
+    originalStartTimeIso: mapping.originalStartTimeIso,
+  });
+}
 
 // ============================================
 // Meeting UID Resolution
@@ -34,13 +90,14 @@ import type { CalendarEvent } from '@/calendar/types';
 export async function getOrCreateMeetingUid(
   event: CalendarEvent
 ): Promise<string> {
+  const startTimeIso = new Date(event.startTime).toISOString();
+
   // Try iCalUID first (most stable identifier)
   if (event.iCalUid) {
     const byICalUid = await meetingUidMappingsStore.getByICalUid(event.iCalUid);
 
     if (byICalUid.length > 0) {
       // For recurring events, also match start time
-      const startTimeIso = new Date(event.startTime).toISOString();
       const exactMatch = byICalUid.find(
         (m) => m.startTimeIso === startTimeIso
       );
@@ -49,8 +106,19 @@ export async function getOrCreateMeetingUid(
         return exactMatch.meetingUid;
       }
 
-      // If no exact match for this instance, it's a new recurring instance
-      // Fall through to create new mapping
+      // Check for same-day reschedule (e.g., standup moved from 9am to 10am)
+      // This preserves the meeting_uid and WorkObject associations
+      const sameDayMatch = byICalUid.find((m) =>
+        isSameDateDifferentTime(m.startTimeIso, startTimeIso)
+      );
+
+      if (sameDayMatch) {
+        // Rescheduled instance - update the mapping rather than creating new
+        await updateMappingForReschedule(sameDayMatch, startTimeIso);
+        return sameDayMatch.meetingUid;
+      }
+
+      // No match - new recurring instance, fall through to create new mapping
     }
   }
 
@@ -71,6 +139,7 @@ export async function getOrCreateMeetingUid(
 async function createMeetingUidMapping(event: CalendarEvent): Promise<string> {
   const meetingUid = generateMeetingUid();
   const now = new Date().toISOString();
+  const startTimeIso = new Date(event.startTime).toISOString();
 
   const mapping: MeetingUidMapping = {
     meetingUid,
@@ -78,7 +147,8 @@ async function createMeetingUidMapping(event: CalendarEvent): Promise<string> {
     iCalUid: event.iCalUid || '',
     eventId: event.id,
     calendarId: 'primary', // TODO: capture from API when available
-    startTimeIso: new Date(event.startTime).toISOString(),
+    startTimeIso,
+    originalStartTimeIso: startTimeIso, // Set on creation for audit trail
     createdAtIso: now,
   };
 

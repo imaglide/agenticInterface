@@ -81,8 +81,10 @@ export interface MeetingUidMapping {
   eventId: string;
   /** Calendar ID from provider */
   calendarId: string;
-  /** Start time for recurring instance disambiguation */
+  /** Start time for recurring instance disambiguation (may change on reschedule) */
   startTimeIso: string;
+  /** Original start time, immutable for audit trail */
+  originalStartTimeIso?: string;
   /** When this mapping was created */
   createdAtIso: string;
 }
