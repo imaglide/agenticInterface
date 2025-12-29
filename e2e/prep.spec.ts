@@ -140,13 +140,13 @@ test.describe('Prep Mode', () => {
   });
 
   test.describe('B4.5 - Goal Interactions', () => {
-    test('goal delete buttons exist', async ({ page }) => {
+    test('goal action menu exists', async ({ page }) => {
       await injectGoals(page, ['Get alignment on timeline']);
       await page.waitForTimeout(300);
 
-      // Look for delete button (×)
-      const deleteButton = page.locator('button:has-text("×")');
-      await expect(deleteButton.first()).toBeVisible();
+      // Look for action menu button (three-dot menu that contains delete)
+      const actionMenu = page.locator('button[aria-label="Actions"]');
+      await expect(actionMenu.first()).toBeVisible();
     });
 
     test('goal check buttons exist', async ({ page }) => {
