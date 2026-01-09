@@ -41,4 +41,26 @@ This is an **agent-driven UI** system. The agent chooses the UI surface based on
 ## Spec References
 
 - Full spec: `docs/agentic_interface_v1.md`
-- Current phase: Phase A (UI Infrastructure)
+- Current phase: Phase H (Founder Test)
+
+---
+
+## Environment Setup
+
+```bash
+# TODO: Add setup commands
+```
+
+---
+
+## Local Access
+
+No registered services. See `~/Development/dev/ports.json`.
+
+---
+
+## Commands
+
+```bash
+# TODO: Add commands
+```
