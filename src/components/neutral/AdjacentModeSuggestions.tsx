@@ -18,6 +18,7 @@ const modeIcons: Record<Mode, string> = {
   meeting_prep: '◐',
   meeting_capture: '●',
   meeting_synthesis_min: '◑',
+  agentic_work_surface: '◈',
 };
 
 export function AdjacentModeSuggestions({

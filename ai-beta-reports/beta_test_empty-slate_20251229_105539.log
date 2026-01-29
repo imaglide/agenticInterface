@@ -1,0 +1,13 @@
+╭─────────────── AI Beta Test Session ────────────────╮
+│ Target:                                             │
+│ http://localhost:3010?scenario=empty-slate&noharnes │
+│ s                                                   │
+│ Goal: Explore the app in the 'empty-slate' scenario │
+│ and identify any UX issues                          │
+│ Agents: speedrunner, methodical_newcomer,           │
+│ chaos_gremlin, skeptical_exec                       │
+│ Max Actions: 50                                     │
+│ Max Duration: 600s                                  │
+╰─────────────────────────────────────────────────────╯
+Fatal error in message reader: Command failed with exit code -15 (exit code: -15)
+Error output: Check stderr output for details

@@ -134,6 +134,8 @@ export interface StoredMarker {
   label?: string;
   timestamp: number;
   meetingId: string;
+  /** Soft-delete timestamp (tombstone) */
+  deletedAt?: number;
 }
 
 export interface StoredMy3Goal {

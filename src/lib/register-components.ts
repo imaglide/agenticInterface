@@ -32,6 +32,9 @@ import { GoalsOutcomeCard } from '@/components/synthesis/GoalsOutcomeCard';
 import { MarkersSummaryCard } from '@/components/synthesis/MarkersSummaryCard';
 import { NextActionsCard } from '@/components/synthesis/NextActionsCard';
 
+// Workspace components
+import { WorkspaceRenderer } from '@/workspaces/WorkspaceRenderer';
+
 export function registerAllComponents(): void {
   // Neutral mode
   registerComponent('NeutralIntentSetter', NeutralIntentSetter);
@@ -57,4 +60,7 @@ export function registerAllComponents(): void {
   registerComponent('GoalsOutcomeCard', GoalsOutcomeCard);
   registerComponent('MarkersSummaryCard', MarkersSummaryCard);
   registerComponent('NextActionsCard', NextActionsCard);
+
+  // Workspace
+  registerComponent('WorkspaceRenderer', WorkspaceRenderer);
 }

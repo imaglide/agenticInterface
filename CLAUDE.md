@@ -1,66 +1,111 @@
-# Agentic Interface — Project Rules
+<!-- AUTO-GENERATED from ports.json — do not edit manually -->
+<!-- Regenerate: python3 ~/Development/generate_claude_md.py --apply -->
 
-## Dev Infrastructure
+# Agentic Interface
 
-| Property | Value |
-|----------|-------|
-| Port | 3010 |
-| Domain | http://agentic.test/ |
-| Type | Next.js (App Router) |
-| Command | `npm run dev` |
-
-## Architecture
-
-This is an **agent-driven UI** system. The agent chooses the UI surface based on calendar context; users supervise rather than navigate.
-
-### Core Concepts
-
-- **UI Plan**: JSON schema describing what to render (mode, layout, components, confidence)
-- **Mode**: One of `neutral_intent`, `meeting_prep`, `meeting_capture`, `meeting_synthesis_min`
-- **Component Registry**: Static mapping of component types to React components
-- **Decision Capsule**: Explainability layer ("Why this view?")
-
-### Key Files
-
-| Path | Purpose |
-|------|---------|
-| `src/types/ui-plan.ts` | Core TypeScript types |
-| `src/lib/component-registry.ts` | Component lookup |
-| `src/components/layouts/` | Layout templates (Stack, Split, Single) |
-| `src/components/PlanRenderer.tsx` | Main renderer |
-| `docs/agentic_interface_v1.md` | Full specification |
-| `docs/phases/` | Implementation phases |
-
-### Rules
-
-1. **Agent never generates UI code** — only selects from finite component library
-2. **No component reordering after render** — stability rule
-3. **Mode switches only at safe boundaries** — see spec §4.3
-4. **Low confidence never auto-switches** — requires user intent
-
-## Spec References
-
-- Full spec: `docs/agentic_interface_v1.md`
-- Current phase: Phase H (Founder Test)
+Next.js + React + TypeScript project.
 
 ---
 
 ## Environment Setup
 
 ```bash
-# TODO: Add setup commands
+# Install Node dependencies
+npm install
 ```
 
 ---
 
 ## Local Access
 
-No registered services. See `~/Development/dev/ports.json`.
+| Service | Domain | Port |
+|---------|--------|------|
+| Frontend | http://agentic.test | 3010 |
+
+Port assignments defined in `~/Development/dev/ports.json`.
 
 ---
 
 ## Commands
 
 ```bash
-# TODO: Add commands
+# Start frontend
+npm run dev
 ```
+
+---
+
+## Structure
+
+```
+ai-beta-reports/
+  beta_test_empty-slate_20251229_105539/
+    screenshots/
+    sessions/
+  beta_test_fuzz-12766-high_20251229_105700/
+    screenshots/
+    sessions/
+  beta_test_fuzz-12919-high_20251229_105159/
+    screenshots/
+    sessions/
+  beta_test_fuzz-13392-medium_20251229_105700/
+    screenshots/
+    sessions/
+  beta_test_fuzz-27327-low_20251229_105539/
+    screenshots/
+    sessions/
+  beta_test_fuzz-9893-medium_20251229_105318/
+    screenshots/
+    sessions/
+  interview_skeptical_exec.json/
+    screenshots/
+    sessions/
+  interview_speedrunner.json/
+    screenshots/
+    sessions/
+docs/
+  phases/
+e2e/
+playwright-report/
+public/
+scripts/
+src/
+  app/
+    auth/
+    founder-test/
+    interview/
+  calendar/
+  components/
+    calendar/
+    capture/
+    dev/
+    layouts/
+    linking/
+    neutral/
+    prep/
+    shared/
+    synthesis/
+  contexts/
+  hooks/
+    __tests__/
+  lib/
+    __tests__/
+  plans/
+  rules/
+    __tests__/
+  storage/
+    __tests__/
+    migration/
+  test/
+  test-harness/
+    interviewer/
+  types/
+test-results/
+```
+
+---
+
+## Notes
+
+- Tech: Next.js, React, TypeScript
+- **File Map**: [docs/FILE_MAP.md](docs/FILE_MAP.md) - Detailed guide to the codebase structure.

@@ -6,6 +6,8 @@
  */
 
 import type { TestScenario, TimelineScenario } from './types';
+import { generateRandomScenario } from './generator';
+import { intentCompilationScenario } from '@/scenarios/intent-compilation';
 
 // Re-export types for convenience
 export type { TimelineScenario } from './types';
@@ -137,6 +139,7 @@ export const basicScenarios: TestScenario[] = [
     ],
     expectedMode: 'meeting_synthesis_min',
   },
+  intentCompilationScenario,
 ];
 
 /**
@@ -1059,8 +1062,23 @@ export function getAllScenariosList(): (TestScenario | TimelineScenario)[] {
 
 /**
  * Get scenario by ID.
+ * Supports dynamic fuzzing IDs: "fuzz-<seed>-<complexity>"
+ * Example: fuzz-123-medium
  */
 export function getScenarioById(id: string): TestScenario | TimelineScenario | undefined {
+  // Check for dynamic fuzzing ID
+  if (id && id.startsWith('fuzz-')) {
+    const parts = id.split('-');
+    // format: fuzz-SEED-COMPLEXITY (e.g. fuzz-123-medium)
+    // or just: fuzz-SEED (defaults to medium)
+    const seed = parseInt(parts[1], 10);
+    const complexity = (parts[2] as 'low' | 'medium' | 'high') || 'medium';
+
+    if (!isNaN(seed)) {
+      return generateRandomScenario(seed, complexity);
+    }
+  }
+
   return getAllScenariosList().find(s => s.id === id);
 }
 

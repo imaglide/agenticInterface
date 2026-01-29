@@ -13,7 +13,8 @@ export type Mode =
   | 'neutral_intent'
   | 'meeting_prep'
   | 'meeting_capture'
-  | 'meeting_synthesis_min';
+  | 'meeting_synthesis_min'
+  | 'agentic_work_surface';
 
 /**
  * Confidence level for mode selection decisions.

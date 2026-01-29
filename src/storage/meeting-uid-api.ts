@@ -146,7 +146,7 @@ async function createMeetingUidMapping(event: CalendarEvent): Promise<string> {
     provider: 'gcal',
     iCalUid: event.iCalUid || '',
     eventId: event.id,
-    calendarId: 'primary', // TODO: capture from API when available
+    calendarId: event.calendarId || 'primary',
     startTimeIso,
     originalStartTimeIso: startTimeIso, // Set on creation for audit trail
     createdAtIso: now,

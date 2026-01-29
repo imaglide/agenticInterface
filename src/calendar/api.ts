@@ -85,7 +85,7 @@ async function calendarFetchWithRetry<T>(
 /**
  * Parse Google Calendar event to our CalendarEvent type.
  */
-function parseGoogleEvent(event: GoogleCalendarEvent): CalendarEvent {
+function parseGoogleEvent(event: GoogleCalendarEvent, calendarId: string = 'primary'): CalendarEvent {
   // Handle all-day events vs timed events
   const isAllDay = !event.start.dateTime;
 
@@ -117,6 +117,7 @@ function parseGoogleEvent(event: GoogleCalendarEvent): CalendarEvent {
     location: event.location,
     description: event.description,
     htmlLink: event.htmlLink,
+    calendarId,
     isAllDay,
   };
 }
@@ -160,7 +161,7 @@ export async function fetchCalendarEvents(
   // Filter out all-day events for now (they don't have specific times)
   // and parse remaining events
   const events = data.items
-    .map(parseGoogleEvent)
+    .map((e) => parseGoogleEvent(e, 'primary'))
     .filter((e) => !e.isAllDay);
 
   return { events, auth: updatedAuth };
@@ -221,7 +222,7 @@ export async function getEventById(eventId: string): Promise<CalendarEvent | nul
       `/calendars/primary/events/${eventId}`,
       auth
     );
-    return parseGoogleEvent(data);
+    return parseGoogleEvent(data, 'primary');
   } catch (error) {
     if (error instanceof Object && 'code' in error && (error as CalendarError).code === 404) {
       return null;

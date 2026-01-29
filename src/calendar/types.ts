@@ -52,6 +52,7 @@ export interface CalendarEvent {
   location?: string;
   description?: string;
   htmlLink?: string;
+  calendarId?: string;
   isAllDay: boolean;
 }
 

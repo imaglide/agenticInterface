@@ -12,7 +12,10 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "test:fuzz": "./scripts/fuzz-local.sh",
+    "analyze": "node src/test-harness/analyze.mjs",
+    "interview": "node src/test-harness/interview-runner.mjs"
   },
   "dependencies": {
     "next": "16.1.1",

@@ -105,7 +105,7 @@ describe('useLinkingMode', () => {
         result.current.selectSource('wo:marker:mtg:abc:m1');
       });
 
-      let linkData: ReturnType<typeof result.current.selectTarget>;
+      let linkData: ReturnType<typeof result.current.selectTarget> | null = null;
       act(() => {
         linkData = result.current.selectTarget('wo:goal:mtg:abc:g1');
       });
@@ -124,7 +124,7 @@ describe('useLinkingMode', () => {
     it('returns null if not in selecting_target state', () => {
       const { result } = renderHook(() => useLinkingMode());
 
-      let linkData: ReturnType<typeof result.current.selectTarget>;
+      let linkData: ReturnType<typeof result.current.selectTarget> | null = null;
       act(() => {
         linkData = result.current.selectTarget('wo:goal:mtg:abc:g1');
       });
@@ -308,7 +308,7 @@ describe('useLinkingMode', () => {
       expect(result.current.status.state).toBe('selecting_target');
 
       // Select target
-      let linkData: ReturnType<typeof result.current.selectTarget>;
+      let linkData: ReturnType<typeof result.current.selectTarget> | null = null;
       act(() => {
         linkData = result.current.selectTarget('wo:goal:mtg:abc:g1');
       });

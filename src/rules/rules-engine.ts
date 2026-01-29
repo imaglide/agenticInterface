@@ -32,6 +32,7 @@ const MODE_LAYOUTS: Record<Mode, LayoutTemplate> = {
   meeting_prep: 'split',
   meeting_capture: 'single',
   meeting_synthesis_min: 'stack',
+  agentic_work_surface: 'stack',
 };
 
 /**

@@ -56,6 +56,15 @@ export const sampleContextSnippets = [
 // ============================================
 
 export const staticPlans: Record<Mode, UIPlan> = {
+  agentic_work_surface: {
+    id: 'static-work-defaults',
+    mode: 'agentic_work_surface',
+    layout: 'stack', // Default layout
+    confidence: 'LOW',
+    reason: 'Static fallback',
+    timestamp: Date.now(),
+    components: []
+  },
   neutral_intent: {
     id: 'static-neutral',
     mode: 'neutral_intent',
@@ -235,6 +244,15 @@ export const staticPlans: Record<Mode, UIPlan> = {
 // ============================================
 
 export const staticCapsules: Record<Mode, DecisionCapsule> = {
+  agentic_work_surface: {
+    viewLabel: 'Agentic Workspace',
+    confidence: 'HIGH',
+    reason: 'Selected by intent',
+    signalsUsed: [],
+    alternativesConsidered: [],
+    wouldChangeIf: [],
+    actions: []
+  },
   neutral_intent: {
     viewLabel: 'Neutral / Intent',
     confidence: 'LOW',
@@ -328,6 +346,7 @@ export const modeLabels: Record<Mode, string> = {
   meeting_prep: 'Meeting Prep',
   meeting_capture: 'Meeting Capture',
   meeting_synthesis_min: 'Post-Meeting Synthesis',
+  agentic_work_surface: 'Agentic Workspace',
 };
 
 export const modeDescriptions: Record<Mode, string> = {
@@ -335,4 +354,5 @@ export const modeDescriptions: Record<Mode, string> = {
   meeting_prep: 'Orient and clarify goals before meeting',
   meeting_capture: 'Mark key moments during meeting',
   meeting_synthesis_min: 'Close the loop after meeting',
+  agentic_work_surface: 'Dynamic workspace for your intent',
 };

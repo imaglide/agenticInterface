@@ -24,6 +24,8 @@ import { getScenarioById, activateScenario, getSimulatedCalendarEvents, getVirtu
 import { useCalendarForRules, toRulesEvents } from '@/calendar/use-calendar';
 import { useRulesEngine } from '@/rules/use-rules-engine';
 import { CalendarEvent as RulesCalendarEvent } from '@/rules';
+import { MockIntentCompiler } from '@/compiler/mock-compiler';
+import { WorkspaceDefinition } from '@/compiler/types';
 
 // Register all components on module load
 registerAllComponents();
@@ -140,6 +142,22 @@ export default function Home() {
   // Track if we're using calendar-based selection or fallback
   const [usesFallback, setUsesFallback] = useState(true);
 
+  // Phase H: Intent Compiler Integration
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceDefinition | null>(null);
+
+  const handleIntentSubmit = async (intent: string) => {
+    console.log('[Phase H] Compiling intent:', intent);
+    const compiler = new MockIntentCompiler();
+    const result = await compiler.compile(intent);
+
+    if (result.success && result.workspace) {
+      console.log('[Phase H] Compilation successful:', result.workspace);
+      setActiveWorkspace(result.workspace);
+      // Force switch to new work surface mode
+      forceMode('agentic_work_surface');
+    }
+  };
+
   // Track which scenario has been initialized to prevent re-initialization loops
   const scenarioInitializedRef = useRef<string | null>(null);
 
@@ -194,8 +212,71 @@ export default function Home() {
   const { recordInteraction } = useSessionTracking(currentMode, currentMeetingId);
 
   // Determine active plan and capsule (rules vs static fallback)
-  const plan = staticPlans[currentMode];
-  const capsule: DecisionCapsule = rulesCapsule ?? staticCapsules[currentMode];
+  // Determine active plan and capsule (rules vs static fallback)
+  let plan = staticPlans[currentMode];
+
+  // Phase H: Dynamic Plan Generation for Work Surface
+  if (currentMode === 'agentic_work_surface' && activeWorkspace) {
+    plan = {
+      id: `dynamic-work-${activeWorkspace.id}`,
+      mode: 'agentic_work_surface',
+      layout: 'single', // Workspaces usually take full width
+      confidence: 'HIGH',
+      reason: activeWorkspace.context.reasoning,
+      timestamp: Date.now(),
+      components: [
+        {
+          type: 'WorkspaceRenderer',
+          id: 'workspace-main',
+          props: { definition: activeWorkspace }
+        }
+      ]
+    };
+  } else if (currentMode === 'agentic_work_surface' && !activeWorkspace) {
+    // Fallback if switched manually without intent
+    plan = {
+      id: 'empty-work-surface',
+      mode: 'agentic_work_surface',
+      layout: 'stack',
+      confidence: 'LOW',
+      reason: 'No intent defined',
+      timestamp: Date.now(),
+      components: [
+        {
+          type: 'NeutralIntentSetter',
+          id: 'intent-setter-fallback',
+          props: {
+            placeholder: 'Enter an intent to generate a workspace...',
+            onIntentSubmit: (intent: string) => handleIntentSubmit(intent)
+          }
+        }
+      ]
+    };
+  }
+
+  // Inject handleIntentSubmit into NeutralIntentSetter if present in plan
+  plan = {
+    ...plan,
+    components: plan.components.map(c => {
+      if (c.type === 'NeutralIntentSetter') {
+        return {
+          ...c,
+          props: { ...c.props, onIntentSubmit: handleIntentSubmit }
+        };
+      }
+      return c;
+    })
+  };
+
+  const capsule: DecisionCapsule = rulesCapsule ?? staticCapsules[currentMode] ?? {
+    viewLabel: 'Agentic Workspace',
+    confidence: 'HIGH',
+    reason: 'Generated from your intent',
+    signalsUsed: ['User Intent'],
+    alternativesConsidered: [],
+    wouldChangeIf: [],
+    actions: []
+  };
 
   // Trigger rules evaluation when calendar becomes ready OR simulated events are loaded
   useEffect(() => {
@@ -263,131 +344,130 @@ export default function Home() {
 
   return (
     <MeetingProvider meetingId={currentMeetingId} meeting={meeting} onDataChanged={refreshMeeting}>
-    <LinkingProvider>
-      {/* Dev Navigation Panel */}
-      <div className={`fixed left-4 top-4 z-50 w-64 rounded-xl bg-white shadow-xl ${isDev ? 'mr-80' : ''}`}>
-        {/* Header */}
-        <div className="border-b px-4 py-3">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">Agentic Interface</h2>
-            <CalendarStatusIndicator />
+      <LinkingProvider>
+        {/* Dev Navigation Panel */}
+        <div className={`fixed left-4 top-4 z-50 w-64 rounded-xl bg-white shadow-xl ${isDev ? 'mr-80' : ''}`}>
+          {/* Header */}
+          <div className="border-b px-4 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Agentic Interface</h2>
+              <CalendarStatusIndicator />
+            </div>
+            <p className="text-xs text-gray-500">
+              {registeredCount} components • {!usesFallback ? 'Auto mode' : 'Manual mode'}
+            </p>
           </div>
-          <p className="text-xs text-gray-500">
-            {registeredCount} components • {!usesFallback ? 'Auto mode' : 'Manual mode'}
-          </p>
-        </div>
 
-        {/* Mode Selector */}
-        <div className="p-3">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
-            Mode
-          </p>
-          <div className="flex flex-col gap-1">
-            {modeOrder.map((mode) => (
-              <button
-                key={mode}
-                onClick={() => handleModeChange(mode)}
-                className={`rounded-lg px-3 py-2 text-left transition ${
-                  currentMode === mode
+          {/* Mode Selector */}
+          <div className="p-3">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+              Mode
+            </p>
+            <div className="flex flex-col gap-1">
+              {modeOrder.map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => handleModeChange(mode)}
+                  className={`rounded-lg px-3 py-2 text-left transition ${currentMode === mode
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <p className="text-sm font-medium">{modeLabels[mode]}</p>
-                <p className={`text-xs ${currentMode === mode ? 'text-blue-200' : 'text-gray-500'}`}>
-                  {modeDescriptions[mode]}
-                </p>
-              </button>
-            ))}
+                    }`}
+                >
+                  <p className="text-sm font-medium">{modeLabels[mode]}</p>
+                  <p className={`text-xs ${currentMode === mode ? 'text-blue-200' : 'text-gray-500'}`}>
+                    {modeDescriptions[mode]}
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Plan Inspector Toggle */}
-        <div className="border-t p-3">
-          <button
-            onClick={() => setShowPlanInspector(!showPlanInspector)}
-            className="flex w-full items-center justify-between rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200"
-          >
-            <span>Plan Inspector</span>
-            <span className="text-gray-400">{showPlanInspector ? '▾' : '▸'}</span>
-          </button>
+          {/* Plan Inspector Toggle */}
+          <div className="border-t p-3">
+            <button
+              onClick={() => setShowPlanInspector(!showPlanInspector)}
+              className="flex w-full items-center justify-between rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200"
+            >
+              <span>Plan Inspector</span>
+              <span className="text-gray-400">{showPlanInspector ? '▾' : '▸'}</span>
+            </button>
 
-          {showPlanInspector && (
-            <div className="mt-2 max-h-64 overflow-y-auto rounded-lg bg-gray-900 p-3 text-xs">
-              <pre className="text-green-400">
-                {JSON.stringify(
-                  {
-                    id: plan.id,
-                    mode: plan.mode,
-                    layout: plan.layout,
-                    confidence: plan.confidence,
-                    reason: plan.reason,
-                    components: plan.components.map((c) => ({
-                      type: c.type,
-                      id: c.id,
-                    })),
-                  },
-                  null,
-                  2
-                )}
-              </pre>
+            {showPlanInspector && (
+              <div className="mt-2 max-h-64 overflow-y-auto rounded-lg bg-gray-900 p-3 text-xs">
+                <pre className="text-green-400">
+                  {JSON.stringify(
+                    {
+                      id: plan.id,
+                      mode: plan.mode,
+                      layout: plan.layout,
+                      confidence: plan.confidence,
+                      reason: plan.reason,
+                      components: plan.components.map((c) => ({
+                        type: c.type,
+                        id: c.id,
+                      })),
+                    },
+                    null,
+                    2
+                  )}
+                </pre>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Info */}
+          <div className="border-t p-3 text-xs text-gray-500">
+            <p><strong>Layout:</strong> {plan.layout}</p>
+            <p><strong>Confidence:</strong> {plan.confidence}</p>
+            <p><strong>Components:</strong> {plan.components.length}</p>
+            {calendarReady && <p><strong>Calendar Events:</strong> {calendarEvents.length}</p>}
+            {currentMeetingId && <p><strong>Meeting:</strong> {currentMeetingId.slice(0, 12)}...</p>}
+          </div>
+
+          {/* Founder Test Link */}
+          {isDev && (
+            <div className="border-t p-3">
+              <a
+                href="/founder-test"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-200"
+              >
+                <span>📊</span>
+                <span>Founder Test Dashboard</span>
+              </a>
             </div>
           )}
         </div>
 
-        {/* Quick Info */}
-        <div className="border-t p-3 text-xs text-gray-500">
-          <p><strong>Layout:</strong> {plan.layout}</p>
-          <p><strong>Confidence:</strong> {plan.confidence}</p>
-          <p><strong>Components:</strong> {plan.components.length}</p>
-          {calendarReady && <p><strong>Calendar Events:</strong> {calendarEvents.length}</p>}
-          {currentMeetingId && <p><strong>Meeting:</strong> {currentMeetingId.slice(0, 12)}...</p>}
-        </div>
+        {/* Plan Renderer */}
+        <PlanRenderer plan={plan} />
 
-        {/* Founder Test Link */}
-        {isDev && (
-          <div className="border-t p-3">
-            <a
-              href="/founder-test"
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-200"
-            >
-              <span>📊</span>
-              <span>Founder Test Dashboard</span>
-            </a>
-          </div>
+        {/* Decision Capsule Panel ("Why this view?") */}
+        <DecisionCapsulePanel
+          capsule={capsule}
+          onAction={handleCapsuleAction}
+        />
+
+        {/* Linking Mode Overlay (shows when linking is active) */}
+        <LinkingOverlayWrapper />
+
+        {/* Dev Harness (only in dev mode, hidden with ?noharness for sanity check) */}
+        {isDev && !noHarness && (
+          <>
+            <DevHarness
+              currentMode={currentMode}
+              onModeChange={handleModeChange}
+              currentMeetingId={currentMeetingId}
+              onMeetingChange={setCurrentMeetingId}
+            />
+            <ScenarioPanel onScenarioLoaded={(meetingIds) => {
+              if (meetingIds && meetingIds.length > 0) {
+                setCurrentMeetingId(meetingIds[0]);
+              }
+              refreshMeeting();
+            }} />
+          </>
         )}
-      </div>
-
-      {/* Plan Renderer */}
-      <PlanRenderer plan={plan} />
-
-      {/* Decision Capsule Panel ("Why this view?") */}
-      <DecisionCapsulePanel
-        capsule={capsule}
-        onAction={handleCapsuleAction}
-      />
-
-      {/* Linking Mode Overlay (shows when linking is active) */}
-      <LinkingOverlayWrapper />
-
-      {/* Dev Harness (only in dev mode, hidden with ?noharness for sanity check) */}
-      {isDev && !noHarness && (
-        <>
-          <DevHarness
-            currentMode={currentMode}
-            onModeChange={handleModeChange}
-            currentMeetingId={currentMeetingId}
-            onMeetingChange={setCurrentMeetingId}
-          />
-          <ScenarioPanel onScenarioLoaded={(meetingIds) => {
-            if (meetingIds && meetingIds.length > 0) {
-              setCurrentMeetingId(meetingIds[0]);
-            }
-            refreshMeeting();
-          }} />
-        </>
-      )}
-    </LinkingProvider>
+      </LinkingProvider>
     </MeetingProvider>
   );
 }

@@ -1,0 +1,11 @@
+╭────────────────── AI Beta Test Session ──────────────────╮
+│ Target:                                                  │
+│ http://localhost:3010?scenario=fuzz-12919-high&noharness │
+│ Goal: Matrix Run 3: Validation                           │
+│ Agents: speedrunner, methodical_newcomer, chaos_gremlin, │
+│ skeptical_exec                                           │
+│ Max Actions: 50                                          │
+│ Max Duration: 600s                                       │
+╰──────────────────────────────────────────────────────────╯
+Fatal error in message reader: Command failed with exit code -15 (exit code: -15)
+Error output: Check stderr output for details

@@ -201,14 +201,14 @@ const activePlan = useFallbackMode
 
 ## Done Criteria
 
-- [ ] Calendar login button visible on main page
-- [ ] OAuth flow completes and stores tokens
-- [ ] Calendar events appear in app (can verify via DevHarness)
-- [ ] Mode automatically changes based on meeting proximity
-- [ ] Decision capsule shows real context (not static text)
-- [ ] Manual override still works
-- [ ] Fallback to static mode when calendar unavailable
-- [ ] All 119 E2E tests still pass
+- [x] Calendar login button visible on main page
+- [x] OAuth flow completes and stores tokens
+- [x] Calendar events appear in app (can verify via DevHarness)
+- [x] Mode automatically changes based on meeting proximity
+- [x] Decision capsule shows real context (not static text)
+- [x] Manual override still works
+- [x] Fallback to static mode when calendar unavailable
+- [x] All 119 E2E tests still pass
 
 ---
 

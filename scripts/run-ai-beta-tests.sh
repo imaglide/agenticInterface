@@ -20,9 +20,9 @@ set -e
 
 # Configuration
 AI_BETA_TESTER_DIR="/Users/rob/Development/aiBetaTester"
-APP_URL="http://agentic.test"
-REPORTS_DIR="./ai-beta-reports"
-DEFAULT_AGENTS="speedrunner,methodical_newcomer,chaos_gremlin,skeptical_exec_assistant"
+APP_URL="http://localhost:3010"
+REPORTS_DIR="$(pwd)/ai-beta-reports"
+DEFAULT_AGENTS="speedrunner,methodical_newcomer,chaos_gremlin,skeptical_exec"
 MAX_ACTIONS=50
 MAX_DURATION=600
 
@@ -153,7 +153,7 @@ run_test() {
     --agents "$AGENTS" \
     --max-actions "$MAX_ACTIONS" \
     --max-duration "$MAX_DURATION" \
-    --output "$REPORTS_DIR/$report_name"
+    --output "$REPORTS_DIR/$report_name" 2>&1 | tee "$REPORTS_DIR/$report_name.log"
 
   echo ""
   echo "Report saved to: $REPORTS_DIR/$report_name"

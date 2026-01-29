@@ -132,6 +132,7 @@ export const MODE_PRIORITY: Record<Mode, number> = {
   meeting_prep: 3,
   meeting_synthesis_min: 2,
   neutral_intent: 1,
+  agentic_work_surface: 0,
 };
 
 // ============================================
@@ -143,4 +144,5 @@ export const MODE_LABELS: Record<Mode, string> = {
   meeting_prep: 'Meeting Prep',
   meeting_capture: 'Live Capture',
   meeting_synthesis_min: 'Synthesis',
+  agentic_work_surface: 'Agentic Workspace',
 };

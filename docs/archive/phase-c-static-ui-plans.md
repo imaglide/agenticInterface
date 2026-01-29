@@ -98,9 +98,9 @@ For this phase only, add temporary dev navigation to switch between static plans
 - §8 Mode Specifications
 
 ## Done Criteria
-- [ ] All four static plans defined
-- [ ] Each plan renders correctly in its layout
-- [ ] Components receive and display mock props
-- [ ] Temporary navigation allows switching between plans
-- [ ] Prep takes ≤ 2 minutes to review (per §8.2 rule)
-- [ ] Capture layout has no unnecessary movement
+- [x] All four static plans defined
+- [x] Each plan renders correctly in its layout
+- [x] Components receive and display mock props
+- [x] Temporary navigation allows switching between plans
+- [x] Prep takes ≤ 2 minutes to review (per §8.2 rule)
+- [x] Capture layout has no unnecessary movement

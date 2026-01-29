@@ -1,0 +1,10 @@
+╭─────────────── AI Beta Test Session ────────────────╮
+│ Target:                                             │
+│ http://localhost:3010?scenario=fuzz-9893-medium&noh │
+│ arness                                              │
+│ Goal: Matrix Run 1: Validation                      │
+│ Agents: speedrunner, methodical_newcomer,           │
+│ chaos_gremlin, skeptical_exec                       │
+│ Max Actions: 50                                     │
+│ Max Duration: 600s                                  │
+╰─────────────────────────────────────────────────────╯
